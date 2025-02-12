@@ -22,18 +22,45 @@ const NewHouseholdForm = () => {
     createTables(); // Ensure tables are created when the component mounts
   }, []);
 
+  // ✅ Function to check for empty fields
+  const validateForm = () => {
+    if (!sitio || !householdNumber || !dateOfVisit || !toilet || !sourceOfWater || !sourceOfIncome || !foodProduction || !membership4Ps) {
+      Alert.alert("Missing Fields", "Please fill in all the required fields before proceeding.");
+      return false;
+    }
+    return true;
+  };
+
   const handleSave = async () => {
-    const data = { sitio, householdNumber, dateOfVisit, toilet, sourceOfWater, sourceOfIncome, foodProduction, membership4Ps };
+    if (!validateForm()) return; // ✅ Stop if fields are empty
   
-    const householdId = await insertHousehold(data); // ✅ Wait for ID
+    const data = { 
+      sitio, 
+      householdNumber, 
+      dateOfVisit, 
+      toilet, 
+      sourceOfWater, 
+      sourceOfIncome, 
+      foodProduction, 
+      membership4Ps 
+    };
+  
+    const householdId = await insertHousehold(data);  // ✅ Save locally first
   
     if (householdId) {
       Alert.alert("Success", "Household data saved successfully!");
-      router.push({ pathname: "/mealPattern", params: { householdId } }); // ✅ Navigate with ID
+  
+      console.log("🚀 Syncing to Supabase...");
+      
+      await syncWithSupabase();  // ✅ Ensure sync before navigating
+      
+      // ✅ Navigate to mealPattern/index.js
+      router.push(`/mealPattern?householdId=${householdId}`);
     } else {
       Alert.alert("Error", "Failed to save household data.");
     }
   };
+  
   
 
   return (
