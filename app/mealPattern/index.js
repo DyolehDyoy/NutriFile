@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { View, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import { Text, TextInput } from "react-native-paper";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useSearchParams } from "expo-router";
 import { insertMealPattern } from "../database"; // Import database functions
 import { MaterialCommunityIcons } from "@expo/vector-icons"; // ✅ Added for icons
 
 const MealPatternScreen = () => {
   const router = useRouter();
-  const { householdId } = useLocalSearchParams(); // Retrieve householdId
+  const { householdId } = useSearchParams();
+
+  console.log("📝 Received householdId:", householdId); // ✅ Debugging log
 
   // ✅ Include missing state variables
   const [breakfast, setBreakfast] = useState("");
@@ -18,23 +20,37 @@ const MealPatternScreen = () => {
   const [whatIfSick, setWhatIfSick] = useState("");
   const [checkupFrequency, setCheckupFrequency] = useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!householdId) {
-      alert("Error: Household ID is missing.");
+      Alert.alert("Error", "Household ID is missing.");
       return;
     }
-
-    const mealData = { breakfast, lunch, dinner, foodBelief, healthConsideration, whatIfSick, checkupFrequency };
-
-    insertMealPattern(householdId, mealData, (success) => {
+  
+    const mealData = { 
+      breakfast, 
+      lunch, 
+      dinner, 
+      foodBelief, 
+      healthConsideration, 
+      whatIfSick, 
+      checkupFrequency 
+    };
+  
+    try {
+      const success = await insertMealPattern(householdId, mealData);
+      
       if (success) {
-        alert("Meal Pattern saved successfully!");
-        router.push("/addMember"); // Proceed to add new member
+        Alert.alert("Success", "Meal Pattern saved successfully!");
+        router.push("/addMember"); // ✅ Proceed to the next step
       } else {
-        alert("Error: Failed to save meal pattern.");
+        Alert.alert("Error", "Failed to save meal pattern.");
       }
-    });
+    } catch (error) {
+      Alert.alert("Error", "An error occurred while saving meal pattern.");
+      console.error("❌ Meal Pattern Error:", error);
+    }
   };
+  
 
   return (
     <ScrollView style={styles.container}>
