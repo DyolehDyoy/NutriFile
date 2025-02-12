@@ -12,6 +12,7 @@ const NewHouseholdForm = () => {
   // Form State
   const [sitio, setSitio] = useState("");
   const [householdNumber, setHouseholdNumber] = useState("");
+  const [householdNumberError, setHouseholdNumberError] = useState(""); // ✅ Error State
   const [dateOfVisit, setDateOfVisit] = useState(new Date()); // ✅ Default to today
   const [showDatePicker, setShowDatePicker] = useState(false); // ✅ Manage Date Picker visibility
   const [toilet, setToilet] = useState("");
@@ -24,17 +25,31 @@ const NewHouseholdForm = () => {
     createTables(); // Ensure tables are created when the component mounts
   }, []);
 
+  // ✅ Function to validate numeric input for Household Number
+  const handleHouseholdNumberChange = (text) => {
+    if (!/^\d*$/.test(text)) {
+      setHouseholdNumberError("Please enter numbers only");
+    } else {
+      setHouseholdNumberError("");
+    }
+    setHouseholdNumber(text);
+  };
+
   // ✅ Function to check for empty fields
   const validateForm = () => {
     if (!sitio || !householdNumber || !dateOfVisit || !toilet || !sourceOfWater || !sourceOfIncome || !foodProduction || !membership4Ps) {
       Alert.alert("Missing Fields", "Please fill in all the required fields before proceeding.");
       return false;
     }
+    if (householdNumberError) {
+      Alert.alert("Invalid Input", "Please enter a valid household number.");
+      return false;
+    }
     return true;
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return; // ✅ Stop if fields are empty
+    if (!validateForm()) return; // ✅ Stop if fields are empty or invalid
 
     // ✅ Format the date before saving (YYYY-MM-DD)
     const formattedDate = dateOfVisit.toISOString().split("T")[0];
@@ -69,8 +84,24 @@ const NewHouseholdForm = () => {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.header}>Household Information</Text>
-      <TextInput label="Sitio/Purok" mode="outlined" value={sitio} onChangeText={setSitio} style={styles.input} />
-      <TextInput label="Household No." mode="outlined" value={householdNumber} onChangeText={setHouseholdNumber} style={styles.input} />
+      <TextInput 
+        label="Sitio/Purok" 
+        mode="outlined" 
+        value={sitio} 
+        onChangeText={setSitio} 
+        style={styles.input} 
+      />
+
+      {/* ✅ Household Number with Validation */}
+      <TextInput 
+        label="Household No." 
+        mode="outlined" 
+        value={householdNumber} 
+        onChangeText={handleHouseholdNumberChange} 
+        keyboardType="numeric" // ✅ Ensures numeric input
+        style={styles.input} 
+      />
+      {householdNumberError ? <Text style={styles.errorText}>{householdNumberError}</Text> : null}
 
       {/* ✅ Clickable Date Picker Field */}
       <Text style={styles.subHeader}>Date of Visit:</Text>
@@ -137,9 +168,8 @@ const NewHouseholdForm = () => {
         ]}
         style={pickerSelectStyles}
       />
-
       {/* Food Production */}
-      <Text style={styles.subHeader}>Food Production (Vegetable Garden/Raised Animals for Food):</Text>
+      <Text style={styles.subHeader}>Food Production:</Text>
       <RadioButton.Group onValueChange={setFoodProduction} value={foodProduction}>
         <View style={styles.radioContainer}>
           <RadioButton.Item label="Yes" value="Yes" />
@@ -170,6 +200,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
   subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16 },
   input: { marginBottom: 16 },
+  errorText: { color: "red", fontSize: 14, marginBottom: 10 }, // ✅ Style for validation error
   radioContainer: { 
     flexDirection: "row", 
     alignItems: "center",
