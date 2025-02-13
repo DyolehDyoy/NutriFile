@@ -93,81 +93,106 @@ export const insertMealPattern = async (householdId, data) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [householdId, data.breakfast, data.lunch, data.dinner, data.foodBelief, data.healthConsideration, data.whatIfSick, data.checkupFrequency, 0]
     );
-    console.log("✅ Meal Pattern data saved:", { householdId, ...data });
+
+    console.log("✅ Meal Pattern data saved locally:", { householdId, ...data });
+
+    // 🚀 Trigger sync to Supabase
+    await syncWithSupabase();
+
+    return true; // Return success
   } catch (error) {
     console.error("❌ Error inserting meal pattern data:", error);
+    return false;
   }
 };
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const syncWithSupabase = async () => {
   const database = await openDatabase();
 
   try {
     console.log("🔎 Checking for unsynced households...");
 
-    // ✅ Fetch unsynced household data from SQLite
+    // ✅ Fetch unsynced households
     const unsyncedHouseholds = await database.getAllAsync("SELECT * FROM household WHERE synced = 0");
-    console.log("📊 Unsynced Households:", unsyncedHouseholds);
 
     for (const household of unsyncedHouseholds) {
-      const supabaseHousehold = {
+      console.log(`🚀 Syncing household: ${household.id}`);
+
+      // ✅ Insert household and get the Supabase-generated ID
+      const { data, error } = await supabase.from("household").insert([{
         sitio: household.sitio,
-        householdnumber: household.householdNumber, 
-        dateofvisit: household.dateOfVisit,        
+        householdnumber: household.householdNumber,
+        dateofvisit: household.dateOfVisit,
         toilet: household.toilet,
-        sourceofwater: household.sourceOfWater,    
-        sourceofincome: household.sourceOfIncome,  
-        foodproduction: household.foodProduction,  
-        membership4ps: household.membership4Ps,    
-        synced: true,
-      };
+        sourceofwater: household.sourceOfWater,
+        sourceofincome: household.sourceOfIncome,
+        foodproduction: household.foodProduction,
+        membership4ps: household.membership4Ps,
+        synced: true
+      }]).select("id").single(); // ✅ Get the inserted ID
 
-      console.log("🚀 Syncing household to Supabase:", supabaseHousehold);
+      if (!error && data) {
+        const supabaseId = data.id;
+        console.log(`✅ Household ${household.id} synced with Supabase ID: ${supabaseId}`);
 
-      // ✅ Use UPSERT (Insert or Update if exists)
-      const { data, error } = await supabase.from("household")
-        .upsert([supabaseHousehold], { onConflict: ["householdnumber"] });
+        // ✅ Update local database to match Supabase ID
+        await database.runAsync(`UPDATE household SET id = ?, synced = 1 WHERE id = ?`, [supabaseId, household.id]);
 
-      if (!error) {
-        await database.runAsync(`UPDATE household SET synced = 1 WHERE id = ?`, [household.id]);
-        console.log("✅ Household synced successfully:", data);
+        // ✅ Also update mealPattern table to use the correct householdId
+        await database.runAsync(`UPDATE mealPattern SET householdId = ? WHERE householdId = ?`, [supabaseId, household.id]);
       } else {
-        console.error("❌ Error syncing household:", error.message, error.details);
+        console.error("❌ Error syncing household:", error.message);
       }
     }
 
-    // ✅ Fetch unsynced meal pattern data from SQLite
+    console.log("⏳ Waiting 3 seconds for Supabase to process household inserts...");
+    await delay(3000); // ✅ Give Supabase time to process inserts
+
+    console.log("🔎 Checking for unsynced meal patterns...");
+
+    // ✅ Fetch unsynced meal pattern data
     const unsyncedMealPatterns = await database.getAllAsync("SELECT * FROM mealPattern WHERE synced = 0");
-    console.log("📊 Unsynced Meal Patterns:", unsyncedMealPatterns);
 
     for (const meal of unsyncedMealPatterns) {
-      const supabaseMeal = {
-        householdid: meal.householdId,           
+      // ✅ Ensure household exists in Supabase
+      const { data: existingHousehold, error: householdError } = await supabase
+        .from("household")
+        .select("id")
+        .eq("id", meal.householdId)
+        .single();
+
+      if (householdError || !existingHousehold) {
+        console.error(`❌ Household ID ${meal.householdId} not found in Supabase. Skipping meal pattern sync.`);
+        continue;
+      }
+
+      // ✅ Insert meal pattern using correct household ID
+      const { data, error } = await supabase.from("mealpattern").insert([{
+        householdid: meal.householdId,
         breakfast: meal.breakfast,
         lunch: meal.lunch,
         dinner: meal.dinner,
-        foodbelief: meal.foodBelief,             
-        healthconsideration: meal.healthConsideration, 
-        whatifsick: meal.whatIfSick,             
-        checkupfrequency: meal.checkupFrequency, 
-        synced: true,
-      };
+        foodbelief: meal.foodBelief,
+        healthconsideration: meal.healthConsideration,
+        whatifsick: meal.whatIfSick,
+        checkupfrequency: meal.checkupFrequency,
+        synced: true
+      }]);
 
-      console.log("🚀 Syncing meal pattern to Supabase:", supabaseMeal);
-
-      // ✅ Insert into Supabase
-      const { data, error } = await supabase.from("mealpattern").insert([supabaseMeal]);
-
-      if (error) {
-        console.error("❌ Error syncing meal pattern:", error.message, error.details);
-      } else {
-        console.log("✅ Meal Pattern synced successfully:", data);
+      if (!error) {
         await database.runAsync(`UPDATE mealPattern SET synced = 1 WHERE id = ?`, [meal.id]);
+        console.log("✅ Meal Pattern synced successfully:", data);
+      } else {
+        console.error("❌ Error syncing meal pattern:", error.message);
       }
     }
   } catch (error) {
     console.error("❌ General Sync error:", error);
   }
 };
+
 
 
 
