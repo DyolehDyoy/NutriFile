@@ -4,7 +4,7 @@ import { Text, TextInput, Button, RadioButton } from "react-native-paper";
 import RNPickerSelect from "react-native-picker-select";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { createTables, insertHousehold } from "../database"; // Import database functions
+import { createTables, insertHousehold, syncWithSupabase } from "../database";
 
 const NewHouseholdForm = () => {
   const router = useRouter();
@@ -21,9 +21,11 @@ const NewHouseholdForm = () => {
   const [foodProduction, setFoodProduction] = useState("");
   const [membership4Ps, setMembership4Ps] = useState("");
 
-  useEffect(() => {
-    createTables(); // Ensure tables are created when the component mounts
+    useEffect(() => {
+      createTables(); // Ensure tables are created
+      syncWithSupabase(); // ✅ Try syncing every time the form loads
   }, []);
+
 
   // ✅ Function to validate numeric input for Household Number
   const handleHouseholdNumberChange = (text) => {
@@ -75,7 +77,7 @@ const NewHouseholdForm = () => {
       await syncWithSupabase();  // ✅ Ensure sync before navigating
       
       // ✅ Navigate to mealPattern/index.js
-      router.push(`/mealPattern?householdId=${householdId}`);
+      router.push({ pathname: "/mealPattern", params: { householdId } }); // ✅ Navigate with ID
     } else {
       Alert.alert("Error", "Failed to save household data.");
     }

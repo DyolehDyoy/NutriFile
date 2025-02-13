@@ -17,15 +17,12 @@ export const openDatabase = async () => {
 
 // Function to create tables
 export const createTables = async () => {
-  const database = await openDatabase(); // Open database first
+  try {
+    const database = await openDatabase();
 
-  // Drop old tables if they exist
-  await database.execAsync(`DROP TABLE IF EXISTS household;`);
-  await database.execAsync(`DROP TABLE IF EXISTS mealPattern;`);
+    console.log("🚀 Ensuring household and mealPattern tables exist...");
 
-  // Create new `household` table with `synced` column
-  await database.execAsync(`
-    CREATE TABLE IF NOT EXISTS household (
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS household (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       sitio TEXT,
       householdNumber TEXT,
@@ -35,14 +32,12 @@ export const createTables = async () => {
       sourceOfIncome TEXT,
       foodProduction TEXT,
       membership4Ps TEXT,
-      synced INTEGER DEFAULT 0  -- 0: Not Synced, 1: Synced
-    );
-  `);
-  console.log("✅ Household table recreated successfully");
+      synced INTEGER DEFAULT 0
+    );`);
 
-  // Create new `mealPattern` table with `synced` column
-  await database.execAsync(`
-    CREATE TABLE IF NOT EXISTS mealPattern (
+    console.log("✅ Household table ready.");
+
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS mealPattern (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       householdId INTEGER,
       breakfast TEXT,
@@ -52,15 +47,17 @@ export const createTables = async () => {
       healthConsideration TEXT,
       whatIfSick TEXT,
       checkupFrequency TEXT,
-      synced INTEGER DEFAULT 0, -- 0: Not Synced, 1: Synced
+      synced INTEGER DEFAULT 0,
       FOREIGN KEY (householdId) REFERENCES household(id)
-    );
-  `);
-  console.log("✅ MealPattern table recreated successfully");
+    );`);
+
+    console.log("✅ MealPattern table ready.");
+
+  } catch (error) {
+    console.error("❌ Error creating tables:", error);
+  }
 };
 
-
-// Insert Household Data
 export const insertHousehold = async (data) => {
   const database = await openDatabase();
   try {
@@ -75,12 +72,17 @@ export const insertHousehold = async (data) => {
     const householdId = result.id;
 
     console.log("✅ Household data saved, ID:", householdId);
+
+    // ✅ Immediately attempt sync after inserting
+    await syncWithSupabase();
+
     return householdId;
   } catch (error) {
     console.error("❌ Error inserting household data:", error);
     return null;
   }
 };
+
 
 // Insert Meal Pattern Data
 export const insertMealPattern = async (householdId, data) => {

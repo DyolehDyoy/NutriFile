@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { View, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import { Text, TextInput } from "react-native-paper";
-import { useRouter, useSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { insertMealPattern } from "../database"; // Import database functions
 import { MaterialCommunityIcons } from "@expo/vector-icons"; // ✅ Added for icons
 
 const MealPatternScreen = () => {
   const router = useRouter();
-  const { householdId } = useSearchParams();
+  const { householdId } = useLocalSearchParams();
 
   console.log("📝 Received householdId:", householdId); // ✅ Debugging log
 
