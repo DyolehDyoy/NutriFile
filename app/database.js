@@ -94,7 +94,7 @@ export const insertMealPattern = async (householdId, data) => {
       [householdId, data.breakfast, data.lunch, data.dinner, data.foodBelief, data.healthConsideration, data.whatIfSick, data.checkupFrequency, 0]
     );
 
-    console.log("✅ Meal Pattern data saved locally:", { householdId, ...data });
+    console.log("✅ Meal Pattern data saved locallly:", { householdId, ...data });
 
     // 🚀 Trigger sync to Supabase
     await syncWithSupabase();
