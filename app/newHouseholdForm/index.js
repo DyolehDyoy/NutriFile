@@ -1,46 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, ScrollView, StyleSheet, Alert, TouchableOpacity, Platform } from "react-native";
 import { Text, TextInput, Button, RadioButton } from "react-native-paper";
 import RNPickerSelect from "react-native-picker-select";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { createTables, insertHousehold, syncWithSupabase } from "../database";
+import { observable } from "@legendapp/state";
+import { insertHousehold, syncWithSupabase, createTables } from "../database"; // Import database functions
+
+// ✅ Legend-State Observable Store
+const formState = observable({
+  sitio: "",
+  householdNumber: "",
+  householdNumberError: "",
+  dateOfVisit: new Date(),
+  showDatePicker: false,
+  toilet: "",
+  sourceOfWater: "",
+  sourceOfIncome: "",
+  foodProduction: "",
+  membership4Ps: "",
+});
 
 const NewHouseholdForm = () => {
   const router = useRouter();
 
-  // Form State
-  const [sitio, setSitio] = useState("");
-  const [householdNumber, setHouseholdNumber] = useState("");
-  const [householdNumberError, setHouseholdNumberError] = useState(""); // ✅ Error State
-  const [dateOfVisit, setDateOfVisit] = useState(new Date()); // ✅ Default to today
-  const [showDatePicker, setShowDatePicker] = useState(false); // ✅ Manage Date Picker visibility
-  const [toilet, setToilet] = useState("");
-  const [sourceOfWater, setSourceOfWater] = useState("");
-  const [sourceOfIncome, setSourceOfIncome] = useState("");
-  const [foodProduction, setFoodProduction] = useState("");
-  const [membership4Ps, setMembership4Ps] = useState("");
-
-    useEffect(() => {
-      createTables(); // Ensure tables are created
-      syncWithSupabase(); // ✅ Try syncing every time the form loads
+  useEffect(() => {
+    createTables(); // Ensure tables are created
   }, []);
-
 
   // ✅ Function to validate numeric input for Household Number
   const handleHouseholdNumberChange = (text) => {
     if (!/^\d*$/.test(text)) {
-      setHouseholdNumberError("Please enter numbers only");
+      formState.householdNumberError.set("Please enter numbers only");
     } else {
-      setHouseholdNumberError("");
+      formState.householdNumberError.set("");
     }
-    setHouseholdNumber(text);
+    formState.householdNumber.set(text);
   };
 
   // ✅ Function to check for empty fields
   const validateForm = () => {
+    const { sitio, householdNumber, dateOfVisit, toilet, sourceOfWater, sourceOfIncome, foodProduction, membership4Ps, householdNumberError } = formState.get();
+    
     if (!sitio || !householdNumber || !dateOfVisit || !toilet || !sourceOfWater || !sourceOfIncome || !foodProduction || !membership4Ps) {
-      Alert.alert("Missing Fields", "Please fill in all the required fields before proceeding.");
+      Alert.alert("Missing Fields", "Please fill in all required fields before proceeding.");
       return false;
     }
     if (householdNumberError) {
@@ -50,33 +53,27 @@ const NewHouseholdForm = () => {
     return true;
   };
 
+  // ✅ Save Data
   const handleSave = async () => {
     if (!validateForm()) return; // ✅ Stop if fields are empty or invalid
 
-    // ✅ Format the date before saving (YYYY-MM-DD)
-    const formattedDate = dateOfVisit.toISOString().split("T")[0];
-
-    const data = { 
-      sitio, 
-      householdNumber, 
-      dateOfVisit: formattedDate,  // ✅ Save formatted date
-      toilet, 
-      sourceOfWater, 
-      sourceOfIncome, 
-      foodProduction, 
-      membership4Ps 
+    const data = {
+      sitio: formState.sitio.get(),
+      householdNumber: formState.householdNumber.get(),
+      dateOfVisit: formState.dateOfVisit.get().toISOString().split("T")[0], // ✅ Save formatted date
+      toilet: formState.toilet.get(),
+      sourceOfWater: formState.sourceOfWater.get(),
+      sourceOfIncome: formState.sourceOfIncome.get(),
+      foodProduction: formState.foodProduction.get(),
+      membership4Ps: formState.membership4Ps.get(),
     };
 
-    const householdId = await insertHousehold(data);  // ✅ Save locally first
+    const householdId = await insertHousehold(data); // ✅ Save locally first
 
     if (householdId) {
       Alert.alert("Success", "Household data saved successfully!");
-
       console.log("🚀 Syncing to Supabase...");
-      
-      await syncWithSupabase();  // ✅ Ensure sync before navigating
-      
-      // ✅ Navigate to mealPattern/index.js
+      await syncWithSupabase(); // ✅ Ensure sync before navigating
       router.push({ pathname: "/mealPattern", params: { householdId } }); // ✅ Navigate with ID
     } else {
       Alert.alert("Error", "Failed to save household data.");
@@ -89,8 +86,8 @@ const NewHouseholdForm = () => {
       <TextInput 
         label="Sitio/Purok" 
         mode="outlined" 
-        value={sitio} 
-        onChangeText={setSitio} 
+        value={formState.sitio.get()} 
+        onChangeText={formState.sitio.set} 
         style={styles.input} 
       />
 
@@ -98,40 +95,34 @@ const NewHouseholdForm = () => {
       <TextInput 
         label="Household No." 
         mode="outlined" 
-        value={householdNumber} 
+        value={formState.householdNumber.get()} 
         onChangeText={handleHouseholdNumberChange} 
         keyboardType="numeric" // ✅ Ensures numeric input
         style={styles.input} 
       />
-      {householdNumberError ? <Text style={styles.errorText}>{householdNumberError}</Text> : null}
+      {formState.householdNumberError.get() ? <Text style={styles.errorText}>{formState.householdNumberError.get()}</Text> : null}
 
       {/* ✅ Clickable Date Picker Field */}
       <Text style={styles.subHeader}>Date of Visit:</Text>
-      <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+      <TouchableOpacity onPress={() => formState.showDatePicker.set(true)}>
         <TextInput
           mode="outlined"
-          value={dateOfVisit.toDateString()} // ✅ Display formatted date
+          value={formState.dateOfVisit.get().toDateString()} // ✅ Display formatted date
           editable={false} // ❌ Prevent manual input
           style={styles.input}
-          left={
-            <TextInput.Icon 
-              icon="calendar" 
-              onPress={() => setShowDatePicker(true)} // ✅ Clicking the icon also opens calendar
-            />
-          }
+          left={<TextInput.Icon icon="calendar" onPress={() => formState.showDatePicker.set(true)} />}
         />
       </TouchableOpacity>
 
-      {/* ✅ Built-in Date Picker for Expo */}
-      {showDatePicker && (
+      {formState.showDatePicker.get() && (
         <DateTimePicker
-          value={dateOfVisit}
+          value={formState.dateOfVisit.get()}
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(event, selectedDate) => {
-            setShowDatePicker(false);
+            formState.showDatePicker.set(false);
             if (selectedDate) {
-              setDateOfVisit(selectedDate);
+              formState.dateOfVisit.set(selectedDate);
             }
           }}
         />
@@ -139,7 +130,7 @@ const NewHouseholdForm = () => {
 
       {/* Toilet */}
       <Text style={styles.subHeader}>Toilet:</Text>
-      <RadioButton.Group onValueChange={setToilet} value={toilet}>
+      <RadioButton.Group onValueChange={formState.toilet.set} value={formState.toilet.get()}>
         <View style={styles.radioContainer}>
           <RadioButton.Item label="Presence" value="Presence" />
           <RadioButton.Item label="Absence" value="Absence" />
@@ -149,30 +140,22 @@ const NewHouseholdForm = () => {
       {/* Source of Water */}
       <Text style={styles.subHeader}>Source of Water</Text>
       <RNPickerSelect
-        onValueChange={(value) => setSourceOfWater(value)}
-        items={[
-          { label: "Spring", value: "Spring" },
-          { label: "DCWD", value: "DCWD" },
-          { label: "Tabay", value: "Tabay" },
-        ]}
+        onValueChange={formState.sourceOfWater.set}
+        items={[{ label: "Spring", value: "Spring" }, { label: "DCWD", value: "DCWD" }, { label: "Tabay", value: "Tabay" }]}
         style={pickerSelectStyles}
       />
 
       {/* Source of Income */}
       <Text style={styles.subHeader}>Source of Income</Text>
       <RNPickerSelect
-        onValueChange={(value) => setSourceOfIncome(value)}
-        items={[
-          { label: "Farming", value: "Farming" },
-          { label: "Fishing", value: "Fishing" },
-          { label: "Business", value: "Business" },
-          { label: "Other", value: "Other" },
-        ]}
+        onValueChange={formState.sourceOfIncome.set}
+        items={[{ label: "Farming", value: "Farming" }, { label: "Fishing", value: "Fishing" }, { label: "Business", value: "Business" }, { label: "Other", value: "Other" }]}
         style={pickerSelectStyles}
       />
+
       {/* Food Production */}
       <Text style={styles.subHeader}>Food Production:</Text>
-      <RadioButton.Group onValueChange={setFoodProduction} value={foodProduction}>
+      <RadioButton.Group onValueChange={formState.foodProduction.set} value={formState.foodProduction.get()}>
         <View style={styles.radioContainer}>
           <RadioButton.Item label="Yes" value="Yes" />
           <RadioButton.Item label="No" value="No" />
@@ -181,7 +164,7 @@ const NewHouseholdForm = () => {
 
       {/* Membership to 4Ps */}
       <Text style={styles.subHeader}>Membership to 4Ps:</Text>
-      <RadioButton.Group onValueChange={setMembership4Ps} value={membership4Ps}>
+      <RadioButton.Group onValueChange={formState.membership4Ps.set} value={formState.membership4Ps.get()}>
         <View style={styles.radioContainer}>
           <RadioButton.Item label="Yes" value="Yes" />
           <RadioButton.Item label="No" value="No" />
@@ -195,23 +178,6 @@ const NewHouseholdForm = () => {
     </ScrollView>
   );
 };
-
-// ✅ Styles
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#ffff" },
-  header: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
-  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16 },
-  input: { marginBottom: 16 },
-  errorText: { color: "red", fontSize: 14, marginBottom: 10 }, // ✅ Style for validation error
-  radioContainer: { 
-    flexDirection: "row", 
-    alignItems: "center",
-    gap: 5, 
-  },
-  button: { marginTop: 20 },
-});
-
-// Styles for the dropdown menu
 const pickerSelectStyles = {
   inputIOS: {
     fontSize: 16,
@@ -234,5 +200,16 @@ const pickerSelectStyles = {
     marginBottom: 16,
   },
 };
+
+// ✅ Styles
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: "#ffff" },
+  header: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
+  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16 },
+  input: { marginBottom: 16 },
+  errorText: { color: "red", fontSize: 14, marginBottom: 10 },
+  radioContainer: { flexDirection: "row", alignItems: "center", gap: 5 },
+  button: { marginTop: 20 },
+});
 
 export default NewHouseholdForm;
