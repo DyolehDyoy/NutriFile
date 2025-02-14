@@ -59,13 +59,21 @@ const MealPatternScreen = () => {
   }, [formState.foodBelief.get()]);
 
   const validateForm = () => {
-    const { breakfast, lunch, dinner, healthConsideration, whatIfSick } = formState.get();
+    const { breakfast, lunch, dinner, healthConsideration, whatIfSick, foodBelief, foodBeliefText } = formState.get();
+  
     if (!breakfast || !lunch || !dinner || !healthConsideration || !whatIfSick) {
       Alert.alert("Missing Fields", "Please fill in all required fields.");
       return false;
     }
+  
+    if (foodBelief && !foodBeliefText) {
+      Alert.alert("Missing Input", "Please describe your food beliefs.");
+      return false;
+    }
+  
     return true;
   };
+  
 
   const handleSave = async () => {
     if (!validateForm()) return;
