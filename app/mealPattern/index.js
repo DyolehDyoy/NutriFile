@@ -1,187 +1,219 @@
-import React, { useEffect } from "react";
-import { View, ScrollView, StyleSheet, Alert, TouchableOpacity } from "react-native";
-import { Text, TextInput } from "react-native-paper";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import {
+  Text,
+  TextInput,
+  Button,
+  Card,
+  Divider,
+  Switch,
+  SegmentedButtons,
+} from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { insertMealPattern, syncWithSupabase } from "../database";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { observable } from "@legendapp/state";
-import { observer } from "@legendapp/state/react"; // ✅ Import observer
+import { observer } from "@legendapp/state/react";
 
 // ✅ Legend-State Observable Store
 const formState = observable({
   breakfast: "",
   lunch: "",
   dinner: "",
-  foodBelief: "",
+  foodBelief: false,
+  foodBeliefText: "",
   healthConsideration: "",
   whatIfSick: "",
-  checkupFrequency: "",
+  checkupFrequency: "Monthly",
+  loading: false,
 });
+
+// ✅ Animated Value for Food Beliefs Input Field
+const foodBeliefAnim = new Animated.Value(0);
 
 const MealPatternScreen = () => {
   const router = useRouter();
   const { householdId } = useLocalSearchParams();
 
-  console.log("📝 Received householdId:", householdId); // ✅ Debugging log
-
   useEffect(() => {
     if (!householdId) {
-      Alert.alert("Error", "Household ID is missing. Returning to previous screen.");
-      router.back(); // Navigate back if householdId is missing
+      Alert.alert("Error", "Household ID is missing. Returning to the previous screen.");
+      router.back();
     }
   }, [householdId]);
 
-  const validateForm = () => {
-    const { breakfast, lunch, dinner, foodBelief, healthConsideration, whatIfSick, checkupFrequency } = formState.get();
+  useEffect(() => {
+    // ✅ Animate Food Beliefs Input when switch is toggled
+    Animated.timing(foodBeliefAnim, {
+      toValue: formState.foodBelief.get() ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [formState.foodBelief.get()]);
 
-    if (!breakfast || !lunch || !dinner || !foodBelief || !healthConsideration || !whatIfSick || !checkupFrequency) {
-      console.error("❌ Validation Failed: Some fields are empty!"); // ✅ Debugging log
-      Alert.alert("Missing Fields", "Please fill in all required fields before proceeding.");
+  const validateForm = () => {
+    const { breakfast, lunch, dinner, healthConsideration, whatIfSick } = formState.get();
+    if (!breakfast || !lunch || !dinner || !healthConsideration || !whatIfSick) {
+      Alert.alert("Missing Fields", "Please fill in all required fields.");
       return false;
     }
-
-    console.log("✅ Validation Passed!"); // ✅ Debugging log
     return true;
   };
+
   const handleSave = async () => {
-    console.log("🛠️ handleSave() triggered!");
+    if (!validateForm()) return;
+    formState.loading.set(true);
 
-    if (!validateForm()) {
-      console.log("❌ Form validation failed!");
-      return;
-    }
-
-    if (!householdId) {
-      console.error("❌ Household ID is missing in MealPatternScreen!");
-      Alert.alert("Error", "Household ID is missing.");
-      return;
-    }
-
-    // ✅ Convert empty strings ("") to a default value to avoid NULL issues
     const mealData = {
       breakfast: formState.breakfast.get() || "N/A",
       lunch: formState.lunch.get() || "N/A",
       dinner: formState.dinner.get() || "N/A",
-      foodbelief: formState.foodBelief.get() || "N/A",  // ✅ Fixed case and added fallback
-      healthconsideration: formState.healthConsideration.get() || "N/A",  // ✅ Fixed case and added fallback
-      whatifsick: formState.whatIfSick.get() || "N/A",  // ✅ Fixed case and added fallback
-      checkupfrequency: formState.checkupFrequency.get() || "N/A",  // ✅ Fixed case and added fallback
+      foodbelief: formState.foodBelief.get() ? formState.foodBeliefText.get() : "No",
+      healthconsideration: formState.healthConsideration.get(),
+      whatifsick: formState.whatIfSick.get(),
+      checkupfrequency: formState.checkupFrequency.get(),
     };
 
-    console.log("📌 Meal Data Before Insert:", JSON.stringify(mealData, null, 2));
-
     const success = await insertMealPattern(householdId, mealData);
-
     if (!success) {
-      console.error("❌ insertMealPattern() failed!");
+      formState.loading.set(false);
       Alert.alert("Error", "Failed to save meal pattern.");
       return;
     }
 
-    Alert.alert("Success", "Meal Pattern saved successfully!");
-    console.log("🚀 Syncing to Supabase...");
     await syncWithSupabase();
-
-    console.log("🔀 Navigating to Add Family Member Page...");
+    Alert.alert("Success", "Meal Pattern saved successfully!");
+    formState.loading.set(false);
     router.push("/addMember");
-};
-
-  
-  
-  
+  };
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.header}>Meal Pattern</Text>
 
-      <TextInput
-        label="Breakfast"
-        mode="outlined"
-        value={formState.breakfast.get()}
-        onChangeText={formState.breakfast.set}
-        style={styles.input}
-        left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="food" size={24} color="gray" />} />}
-      />
+      {/* Meal Entries */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <TextInput
+            label="Breakfast"
+            mode="outlined"
+            value={formState.breakfast.get()}
+            onChangeText={formState.breakfast.set}
+            style={styles.input}
+            left={<TextInput.Icon icon="food-apple" />}
+          />
+          <TextInput
+            label="Lunch"
+            mode="outlined"
+            value={formState.lunch.get()}
+            onChangeText={formState.lunch.set}
+            style={styles.input}
+            left={<TextInput.Icon icon="food" />}
+          />
+          <TextInput
+            label="Dinner"
+            mode="outlined"
+            value={formState.dinner.get()}
+            onChangeText={formState.dinner.set}
+            style={styles.input}
+            left={<TextInput.Icon icon="silverware-fork-knife" />}
+          />
+        </Card.Content>
+      </Card>
 
-      <TextInput
-        label="Lunch"
-        mode="outlined"
-        value={formState.lunch.get()}
-        onChangeText={formState.lunch.set}
-        style={styles.input}
-        left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="food" size={24} color="gray" />} />}
-      />
+      {/* Food Beliefs */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.toggleRow}>
+            <Text style={styles.subHeader}>Do you have any food beliefs?</Text>
+            <Switch
+              value={formState.foodBelief.get()}
+              onValueChange={formState.foodBelief.set}
+            />
+          </View>
+          <Divider style={styles.divider} />
 
-      <TextInput
-        label="Dinner"
-        mode="outlined"
-        value={formState.dinner.get()}
-        onChangeText={formState.dinner.set}
-        style={styles.input}
-        left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="food" size={24} color="gray" />} />}
-      />
+          {/* ✅ Animated Food Beliefs Input Field */}
+          <Animated.View style={{ opacity: foodBeliefAnim, height: foodBeliefAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 80], // Expands smoothly
+          })}}>
+            {formState.foodBelief.get() && (
+              <TextInput
+                mode="outlined"
+                placeholder="Describe any cultural food beliefs..."
+                value={formState.foodBeliefText.get()}
+                onChangeText={formState.foodBeliefText.set}
+                multiline
+                numberOfLines={3}
+                style={styles.input}
+              />
+            )}
+          </Animated.View>
+        </Card.Content>
+      </Card>
 
-      <Text style={styles.subHeader}>Food Beliefs (Cultural):</Text>
-      <TextInput
-        mode="outlined"
-        placeholder="Why do you think this type of food is usually prepared in your home?"
-        value={formState.foodBelief.get()}
-        onChangeText={formState.foodBelief.set}
-        multiline
-        numberOfLines={3}
-        style={styles.input}
-      />
+      {/* Health Practices */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.subHeader}>Health-seeking Practices</Text>
+          <TextInput
+            mode="outlined"
+            placeholder="How healthy do you consider your family?"
+            value={formState.healthConsideration.get()}
+            onChangeText={formState.healthConsideration.set}
+            multiline
+            numberOfLines={3}
+            style={styles.input}
+          />
 
-      <Text style={styles.subHeader}>Health-seeking practices:</Text>
-      <TextInput
-        mode="outlined"
-        placeholder="How healthy do you consider yourself/family?"
-        value={formState.healthConsideration.get()}
-        onChangeText={formState.healthConsideration.set}
-        multiline
-        numberOfLines={3}
-        style={styles.input}
-      />
-      <TextInput
-        mode="outlined"
-        placeholder="Where do you go/What do you do if you get sick?"
-        value={formState.whatIfSick.get()}
-        onChangeText={formState.whatIfSick.set}
-        multiline
-        numberOfLines={3}
-        style={styles.input}
-      />
-      <TextInput
-        mode="outlined"
-        placeholder="How often do you get a health checkup? Why?"
-        value={formState.checkupFrequency.get()}
-        onChangeText={formState.checkupFrequency.set}
-        multiline
-        numberOfLines={3}
-        style={styles.input}
-      />
+          <TextInput
+            mode="outlined"
+            placeholder="Where do you go if you get sick?"
+            value={formState.whatIfSick.get()}
+            onChangeText={formState.whatIfSick.set}
+            multiline
+            numberOfLines={3}
+            style={styles.input}
+          />
 
-      <TouchableOpacity onPress={handleSave} style={styles.addMemberButton}>
-        <Text style={styles.addMemberText}>+ Add Member</Text>
-      </TouchableOpacity>
+          <Text style={styles.subHeader}>Health Checkup Frequency</Text>
+          <SegmentedButtons
+            value={formState.checkupFrequency.get()}
+            onValueChange={formState.checkupFrequency.set}
+            buttons={[
+              { value: "Weekly", label: "Weekly" },
+              { value: "Monthly", label: "Monthly" },
+              { value: "Yearly", label: "Yearly" },
+            ]}
+          />
+        </Card.Content>
+      </Card>
+
+      {/* Save Button */}
+      <Button mode="contained" style={styles.button} onPress={handleSave} disabled={formState.loading.get()}>
+        {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
+      </Button>
     </ScrollView>
   );
 };
 
-// ✅ Styled to match the provided UI
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-  header: { fontSize: 22, fontWeight: "bold", marginBottom: 16 },
-  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16 },
-  input: { marginBottom: 16 },
-  addMemberButton: {
-    marginTop: 20,
-    backgroundColor: "#205C3B",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  addMemberText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
+  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
+  input: { marginBottom: 12 },
+  card: { marginBottom: 16, padding: 10, backgroundColor: "white", borderRadius: 10, elevation: 2 },
+  toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 5 },
+  divider: { marginVertical: 10 },
+  button: { marginTop: 20, padding: 10 },
 });
 
-export default observer(MealPatternScreen); // ✅ Wrap component with observer
+export default observer(MealPatternScreen);

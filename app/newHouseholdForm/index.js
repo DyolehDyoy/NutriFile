@@ -1,231 +1,232 @@
 import React, { useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet, Alert, TouchableOpacity, Platform } from "react-native";
-import { Text, TextInput, Button, RadioButton } from "react-native-paper";
-import RNPickerSelect from "react-native-picker-select";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
+import {
+  Text,
+  TextInput,
+  Button,
+  RadioButton,
+  Switch,
+  Card,
+  Divider,
+  SegmentedButtons,
+} from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { observable } from "@legendapp/state";
-import { observer } from "@legendapp/state/react"; // ✅ Import observer
-import { insertHousehold, syncWithSupabase, createTables } from "../database"; // Import database functions
+import { observer } from "@legendapp/state/react";
+import { insertHousehold, syncWithSupabase, createTables } from "../database";
 
-// ✅ Legend-State Observable Store
 const formState = observable({
   sitio: "",
   householdNumber: "",
   householdNumberError: "",
   dateOfVisit: new Date(),
   showDatePicker: false,
-  toilet: "",
-  sourceOfWater: "",
-  sourceOfIncome: "",
-  foodProduction: "",
-  membership4Ps: "",
+  toilet: "Presence",
+  sourceOfWater: "Spring",
+  sourceOfIncome: "Farming",
+  foodProduction: false,
+  membership4Ps: false,
+  loading: false,
 });
 
 const NewHouseholdForm = () => {
   const router = useRouter();
 
   useEffect(() => {
-    createTables(); // Ensure tables are created
+    createTables();
   }, []);
 
-  // ✅ Function to validate numeric input for Household Number
   const handleHouseholdNumberChange = (text) => {
-    if (!/^\d*$/.test(text)) {
-      formState.householdNumberError.set("Please enter numbers only");
-    } else {
-      formState.householdNumberError.set("");
-    }
+    formState.householdNumberError.set(/^\d*$/.test(text) ? "" : "Numbers only");
     formState.householdNumber.set(text);
   };
 
   const validateForm = () => {
-    const { sitio, householdNumber, dateOfVisit, toilet, sourceOfWater, sourceOfIncome, foodProduction, membership4Ps, householdNumberError } = formState.get();
-    
-    if (!sitio || !householdNumber || !dateOfVisit || !toilet || !sourceOfWater || !sourceOfIncome || !foodProduction || !membership4Ps) {
-      console.error("❌ Validation Failed: Some fields are empty!"); // ✅ Debugging log
-      Alert.alert("Missing Fields", "Please fill in all required fields before proceeding.");
+    const {
+      sitio,
+      householdNumber,
+      toilet,
+      sourceOfWater,
+      sourceOfIncome,
+      householdNumberError,
+    } = formState.get();
+
+    if (!sitio || !householdNumber || householdNumberError) {
+      Alert.alert("Missing Fields", "Please complete all required fields.");
       return false;
     }
-    if (householdNumberError) {
-      console.error("❌ Validation Failed: Invalid Household Number!"); // ✅ Debugging log
-      Alert.alert("Invalid Input", "Please enter a valid household number.");
-      return false;
-    }
-    console.log("✅ Validation Passed!"); // ✅ Debugging log
     return true;
   };
-  
+
   const handleSave = async () => {
-    console.log("🛠️ handleSave() triggered!"); // ✅ Debugging log
-  
-    if (!validateForm()) {
-      console.log("❌ Form validation failed!"); // ✅ Debugging log
-      return; 
-    }
-  
+    if (!validateForm()) return;
+
+    formState.loading.set(true);
+
     const data = {
       sitio: formState.sitio.get(),
-      householdnumber: formState.householdNumber.get(), // ✅ Use lowercase to match database
-      dateofvisit: formState.dateOfVisit.get().toISOString().split("T")[0], // ✅ Lowercase
+      householdnumber: formState.householdNumber.get(),
+      dateofvisit: formState.dateOfVisit.get().toISOString().split("T")[0],
       toilet: formState.toilet.get(),
-      sourceofwater: formState.sourceOfWater.get(), // ✅ Lowercase
-      sourceofincome: formState.sourceOfIncome.get(), // ✅ Lowercase
-      foodproduction: formState.foodProduction.get(), // ✅ Lowercase
-      membership4ps: formState.membership4Ps.get(), // ✅ Lowercase
+      sourceofwater: formState.sourceOfWater.get(),
+      sourceofincome: formState.sourceOfIncome.get(),
+      foodproduction: formState.foodProduction.get() ? "Yes" : "No",
+      membership4ps: formState.membership4Ps.get() ? "Yes" : "No",
     };
-  
-    console.log("📌 Household Data Before Insert:", JSON.stringify(data, null, 2)); // ✅ Debugging log
-    
-    const householdId = await insertHousehold(data); // ✅ Save locally first
-  
+
+    const householdId = await insertHousehold(data);
     if (!householdId) {
-      console.error("❌ insertHousehold() failed!"); // ✅ Debugging log
+      formState.loading.set(false);
       Alert.alert("Error", "Failed to save household data.");
       return;
     }
-  
+
+    await syncWithSupabase();
     Alert.alert("Success", "Household data saved successfully!");
-    console.log("🚀 Syncing to Supabase...");
-    await syncWithSupabase(); // ✅ Ensure sync before navigating
-  
-    console.log("🔀 Navigating to Meal Pattern Page...");
+
+    formState.loading.set(false);
     router.push({ pathname: "/mealPattern", params: { householdId } });
   };
-  
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.header}>Household Information</Text>
-      <TextInput 
-        label="Sitio/Purok" 
-        mode="outlined" 
-        value={formState.sitio.get()} 
-        onChangeText={formState.sitio.set} 
-        style={styles.input} 
-      />
 
-      {/* ✅ Household Number with Validation */}
-      <TextInput 
-        label="Household No." 
-        mode="outlined" 
-        value={formState.householdNumber.get()} 
-        onChangeText={handleHouseholdNumberChange} 
-        keyboardType="numeric" // ✅ Ensures numeric input
-        style={styles.input} 
-      />
-      {formState.householdNumberError.get() ? <Text style={styles.errorText}>{formState.householdNumberError.get()}</Text> : null}
+      {/* Basic Information Card */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <TextInput
+            label="Sitio/Purok"
+            mode="outlined"
+            value={formState.sitio.get()}
+            onChangeText={formState.sitio.set}
+            style={styles.input}
+          />
 
-      {/* ✅ Clickable Date Picker Field */}
-      <Text style={styles.subHeader}>Date of Visit:</Text>
-      <TouchableOpacity onPress={() => formState.showDatePicker.set(true)}>
-        <TextInput
-          mode="outlined"
-          value={formState.dateOfVisit.get().toDateString()} // ✅ Display formatted date
-          editable={false} // ❌ Prevent manual input
-          style={styles.input}
-          left={<TextInput.Icon icon="calendar" onPress={() => formState.showDatePicker.set(true)} />}
-        />
-      </TouchableOpacity>
+          <TextInput
+            label="Household No."
+            mode="outlined"
+            value={formState.householdNumber.get()}
+            onChangeText={handleHouseholdNumberChange}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+          {formState.householdNumberError.get() && (
+            <Text style={styles.errorText}>{formState.householdNumberError.get()}</Text>
+          )}
 
-      {formState.showDatePicker.get() && (
-        <DateTimePicker
-          value={formState.dateOfVisit.get()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, selectedDate) => {
-            formState.showDatePicker.set(false);
-            if (selectedDate) {
-              formState.dateOfVisit.set(selectedDate);
-            }
-          }}
-        />
-      )}
+          <Text style={styles.subHeader}>Date of Visit:</Text>
+          <TouchableOpacity onPress={() => formState.showDatePicker.set(true)}>
+            <TextInput
+              mode="outlined"
+              value={formState.dateOfVisit.get().toDateString()}
+              editable={false}
+              style={styles.input}
+              left={<TextInput.Icon icon="calendar" />}
+            />
+          </TouchableOpacity>
 
-      {/* Toilet */}
-      <Text style={styles.subHeader}>Toilet:</Text>
-      <RadioButton.Group onValueChange={formState.toilet.set} value={formState.toilet.get()}>
-        <View style={styles.radioContainer}>
-          <RadioButton.Item label="Presence" value="Presence" />
-          <RadioButton.Item label="Absence" value="Absence" />
-        </View>
-      </RadioButton.Group>
+          {formState.showDatePicker.get() && (
+            <DateTimePicker
+              value={formState.dateOfVisit.get()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(event, selectedDate) => {
+                formState.showDatePicker.set(false);
+                if (selectedDate) formState.dateOfVisit.set(selectedDate);
+              }}
+            />
+          )}
+        </Card.Content>
+      </Card>
 
-      {/* Source of Water */}
-      <Text style={styles.subHeader}>Source of Water</Text>
-      <RNPickerSelect
-        onValueChange={formState.sourceOfWater.set}
-        items={[{ label: "Spring", value: "Spring" }, { label: "DCWD", value: "DCWD" }, { label: "Tabay", value: "Tabay" }]}
-        style={pickerSelectStyles}
-      />
+      {/* Toilet & Water Source */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.subHeader}>Toilet Availability:</Text>
+          <SegmentedButtons
+            value={formState.toilet.get()}
+            onValueChange={formState.toilet.set}
+            buttons={[
+              { value: "Presence", label: "Present" },
+              { value: "Absence", label: "Absent" },
+            ]}
+          />
 
-      {/* Source of Income */}
-      <Text style={styles.subHeader}>Source of Income</Text>
-      <RNPickerSelect
-        onValueChange={formState.sourceOfIncome.set}
-        items={[{ label: "Farming", value: "Farming" }, { label: "Fishing", value: "Fishing" }, { label: "Business", value: "Business" }, { label: "Other", value: "Other" }]}
-        style={pickerSelectStyles}
-      />
+          <Text style={styles.subHeader}>Source of Water:</Text>
+          <SegmentedButtons
+            value={formState.sourceOfWater.get()}
+            onValueChange={formState.sourceOfWater.set}
+            buttons={[
+              { value: "Spring", label: "Spring" },
+              { value: "DCWD", label: "DCWD" },
+              { value: "Tabay", label: "Tabay" },
+            ]}
+          />
+        </Card.Content>
+      </Card>
 
-      {/* Food Production */}
-      <Text style={styles.subHeader}>Food Production:</Text>
-      <RadioButton.Group onValueChange={formState.foodProduction.set} value={formState.foodProduction.get()}>
-        <View style={styles.radioContainer}>
-          <RadioButton.Item label="Yes" value="Yes" />
-          <RadioButton.Item label="No" value="No" />
-        </View>
-      </RadioButton.Group>
+      {/* Source of Income & Membership */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.subHeader}>Source of Income:</Text>
+          <SegmentedButtons
+            value={formState.sourceOfIncome.get()}
+            onValueChange={formState.sourceOfIncome.set}
+            buttons={[
+              { value: "Farming", label: "Farming" },
+              { value: "Fishing", label: "Fishing" },
+              { value: "Business", label: "Business" },
+              { value: "Other", label: "Other" },
+            ]}
+          />
 
-      {/* Membership to 4Ps */}
-      <Text style={styles.subHeader}>Membership to 4Ps:</Text>
-      <RadioButton.Group onValueChange={formState.membership4Ps.set} value={formState.membership4Ps.get()}>
-        <View style={styles.radioContainer}>
-          <RadioButton.Item label="Yes" value="Yes" />
-          <RadioButton.Item label="No" value="No" />
-        </View>
-      </RadioButton.Group>
+          <Divider style={{ marginVertical: 10 }} />
 
-      {/* Save & Next Button */}
-      <Button mode="contained" style={styles.button} onPress={handleSave}>
-        Save & Next
+          <View style={styles.toggleRow}>
+            <Text style={styles.subHeader}>Food Production:</Text>
+            <Switch
+              value={formState.foodProduction.get()}
+              onValueChange={formState.foodProduction.set}
+            />
+          </View>
+
+          <View style={styles.toggleRow}>
+            <Text style={styles.subHeader}>4Ps Membership:</Text>
+            <Switch
+              value={formState.membership4Ps.get()}
+              onValueChange={formState.membership4Ps.set}
+            />
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Save Button */}
+      <Button mode="contained" style={styles.button} onPress={handleSave} disabled={formState.loading.get()}>
+        {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
       </Button>
     </ScrollView>
   );
-
 };
 
-const pickerSelectStyles = {
-  inputIOS: {
-    fontSize: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "gray",
-    borderRadius: 5,
-    color: "black",
-    backgroundColor: "white",
-    marginBottom: 16,
-  },
-  inputAndroid: {
-    fontSize: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "gray",
-    borderRadius: 5,
-    color: "black",
-    backgroundColor: "white",
-    marginBottom: 16,
-  },
-};
-
-// ✅ Styles
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#ffff" },
-  header: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
-  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16 },
-  input: { marginBottom: 16 },
-  errorText: { color: "red", fontSize: 14, marginBottom: 10 },
-  radioContainer: { flexDirection: "row", alignItems: "center", gap: 5 },
-  button: { marginTop: 20 },
+  container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
+  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
+  input: { marginBottom: 12 },
+  card: { marginBottom: 16, padding: 10, backgroundColor: "white", borderRadius: 10, elevation: 2 },
+  toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 5 },
+  button: { marginTop: 20, padding: 10 },
+  errorText: { color: "red", fontSize: 14 },
 });
 
-export default observer(NewHouseholdForm); // ✅ Wrap component with observer
+export default observer(NewHouseholdForm);

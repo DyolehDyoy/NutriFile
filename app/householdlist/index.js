@@ -1,5 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { 
+  View, 
+  FlatList, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator, 
+  RefreshControl 
+} from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -9,26 +16,35 @@ const HouseholdListScreen = () => {
   const router = useRouter();
   const [households, setHouseholds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ✅ Fetch households from Supabase
+  const fetchHouseholds = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("household")
+        .select("id, householdnumber, sitio")
+        .order("id", { ascending: false }); // ✅ Show newest first
+
+      if (error) throw error;
+
+      setHouseholds(data || []); // Ensure data is an array
+    } catch (error) {
+      console.error("❌ Error fetching households:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Refresh function for pull-down refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchHouseholds();
+    setRefreshing(false);
+  }, []);
+
   useEffect(() => {
-    const fetchHouseholds = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from("household")
-          .select("id, householdnumber, sitio");
-
-        if (error) throw error;
-
-        setHouseholds(data || []); // Ensure data is an array
-      } catch (error) {
-        console.error("❌ Error fetching households:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchHouseholds();
   }, []);
 
@@ -46,10 +62,13 @@ const HouseholdListScreen = () => {
         <FlatList
           data={households}
           keyExtractor={(item) => item.id.toString()}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
-              onPress={() => router.push(`/household/${item.id}`)}
+              onPress={() => router.push(`/editHousehold?id=${item.id}`)} // ✅ Navigate to Edit Household
             >
               <Text style={styles.cardText}>🏠 {item.sitio} - {item.householdnumber}</Text>
               <MaterialCommunityIcons name="chevron-right" size={24} color="black" />
