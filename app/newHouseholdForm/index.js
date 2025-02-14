@@ -5,6 +5,7 @@ import RNPickerSelect from "react-native-picker-select";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { observable } from "@legendapp/state";
+import { observer } from "@legendapp/state/react"; // ✅ Import observer
 import { insertHousehold, syncWithSupabase, createTables } from "../database"; // Import database functions
 
 // ✅ Legend-State Observable Store
@@ -38,47 +39,60 @@ const NewHouseholdForm = () => {
     formState.householdNumber.set(text);
   };
 
-  // ✅ Function to check for empty fields
   const validateForm = () => {
     const { sitio, householdNumber, dateOfVisit, toilet, sourceOfWater, sourceOfIncome, foodProduction, membership4Ps, householdNumberError } = formState.get();
     
     if (!sitio || !householdNumber || !dateOfVisit || !toilet || !sourceOfWater || !sourceOfIncome || !foodProduction || !membership4Ps) {
+      console.error("❌ Validation Failed: Some fields are empty!"); // ✅ Debugging log
       Alert.alert("Missing Fields", "Please fill in all required fields before proceeding.");
       return false;
     }
     if (householdNumberError) {
+      console.error("❌ Validation Failed: Invalid Household Number!"); // ✅ Debugging log
       Alert.alert("Invalid Input", "Please enter a valid household number.");
       return false;
     }
+    console.log("✅ Validation Passed!"); // ✅ Debugging log
     return true;
   };
-
-  // ✅ Save Data
+  
   const handleSave = async () => {
-    if (!validateForm()) return; // ✅ Stop if fields are empty or invalid
-
+    console.log("🛠️ handleSave() triggered!"); // ✅ Debugging log
+  
+    if (!validateForm()) {
+      console.log("❌ Form validation failed!"); // ✅ Debugging log
+      return; 
+    }
+  
     const data = {
       sitio: formState.sitio.get(),
-      householdNumber: formState.householdNumber.get(),
-      dateOfVisit: formState.dateOfVisit.get().toISOString().split("T")[0], // ✅ Save formatted date
+      householdnumber: formState.householdNumber.get(), // ✅ Use lowercase to match database
+      dateofvisit: formState.dateOfVisit.get().toISOString().split("T")[0], // ✅ Lowercase
       toilet: formState.toilet.get(),
-      sourceOfWater: formState.sourceOfWater.get(),
-      sourceOfIncome: formState.sourceOfIncome.get(),
-      foodProduction: formState.foodProduction.get(),
-      membership4Ps: formState.membership4Ps.get(),
+      sourceofwater: formState.sourceOfWater.get(), // ✅ Lowercase
+      sourceofincome: formState.sourceOfIncome.get(), // ✅ Lowercase
+      foodproduction: formState.foodProduction.get(), // ✅ Lowercase
+      membership4ps: formState.membership4Ps.get(), // ✅ Lowercase
     };
-
+  
+    console.log("📌 Household Data Before Insert:", JSON.stringify(data, null, 2)); // ✅ Debugging log
+    
     const householdId = await insertHousehold(data); // ✅ Save locally first
-
-    if (householdId) {
-      Alert.alert("Success", "Household data saved successfully!");
-      console.log("🚀 Syncing to Supabase...");
-      await syncWithSupabase(); // ✅ Ensure sync before navigating
-      router.push({ pathname: "/mealPattern", params: { householdId } }); // ✅ Navigate with ID
-    } else {
+  
+    if (!householdId) {
+      console.error("❌ insertHousehold() failed!"); // ✅ Debugging log
       Alert.alert("Error", "Failed to save household data.");
+      return;
     }
+  
+    Alert.alert("Success", "Household data saved successfully!");
+    console.log("🚀 Syncing to Supabase...");
+    await syncWithSupabase(); // ✅ Ensure sync before navigating
+  
+    console.log("🔀 Navigating to Meal Pattern Page...");
+    router.push({ pathname: "/mealPattern", params: { householdId } });
   };
+  
 
   return (
     <ScrollView style={styles.container}>
@@ -177,7 +191,9 @@ const NewHouseholdForm = () => {
       </Button>
     </ScrollView>
   );
+
 };
+
 const pickerSelectStyles = {
   inputIOS: {
     fontSize: 16,
@@ -212,4 +228,4 @@ const styles = StyleSheet.create({
   button: { marginTop: 20 },
 });
 
-export default NewHouseholdForm;
+export default observer(NewHouseholdForm); // ✅ Wrap component with observer
