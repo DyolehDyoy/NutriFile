@@ -1,3 +1,5 @@
+import { Menu, IconButton } from "react-native-paper";
+import Icon from "react-native-vector-icons/MaterialIcons"; // Import the icon
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -32,11 +34,17 @@ const formState = observable({
   showDatePicker: false,
   toilet: "Presence",
   sourceOfWater: "Spring",
+  sourceOfIncomeMenuVisible: false,
   sourceOfIncome: "Farming",
+  customIncomeSource: "",     // New state to hold the "Other" income input
+  showCustomIncomeInput: false, // Boolean to control text input visibility
   foodProduction: false,
   membership4Ps: false,
   loading: false,
 });
+
+const incomeOptions = ["Farming", "Fishing", "Business", "Other"];
+
 
 const NewHouseholdForm = () => {
   const router = useRouter();
@@ -78,7 +86,9 @@ const NewHouseholdForm = () => {
       dateofvisit: formState.dateOfVisit.get().toISOString().split("T")[0],
       toilet: formState.toilet.get(),
       sourceofwater: formState.sourceOfWater.get(),
-      sourceofincome: formState.sourceOfIncome.get(),
+      sourceofincome: formState.sourceOfIncome.get() === "Other"
+      ? formState.customIncomeSource.get()  // Save custom income source if "Other" is selected
+      : formState.sourceOfIncome.get(),
       foodproduction: formState.foodProduction.get() ? "Yes" : "No",
       membership4ps: formState.membership4Ps.get() ? "Yes" : "No",
     };
@@ -133,7 +143,7 @@ const NewHouseholdForm = () => {
               style={styles.input}
               left={<TextInput.Icon icon="calendar" />}
             />
-          </TouchableOpacity>
+            </TouchableOpacity>
 
           {formState.showDatePicker.get() && (
             <DateTimePicker
@@ -178,22 +188,59 @@ const NewHouseholdForm = () => {
       {/* Source of Income & Membership */}
       <Card style={styles.card}>
         <Card.Content>
-          <Text style={styles.subHeader}>Source of Income:</Text>
-          <SegmentedButtons
-            value={formState.sourceOfIncome.get()}
-            onValueChange={formState.sourceOfIncome.set}
-            buttons={[
-              { value: "Farming", label: "Farming" },
-              { value: "Fishing", label: "Fishing" },
-              { value: "Business", label: "Business" },
-              { value: "Other", label: "Other" },
-            ]}
-          />
+         
+          <View>
+  <Text style={styles.subHeader}>Source of Income:</Text>
+  <Menu
+    visible={formState.sourceOfIncomeMenuVisible.get()}
+    onDismiss={() => formState.sourceOfIncomeMenuVisible.set(false)}
+    anchor={
+      <TouchableOpacity
+      style={styles.dropdownButton}
+      onPress={() => formState.sourceOfIncomeMenuVisible.set(true)}
+    >
+      <Text style={styles.dropdownText}>{formState.sourceOfIncome.get()}</Text>
+      <Icon name="keyboard-arrow-down" size={20} style={styles.dropdownIcon} />
+    </TouchableOpacity>
+    
+              
+    }
+  >
+    {incomeOptions.map((option) => (
+     <Menu.Item
+     key={option}
+     onPress={() => {
+       formState.sourceOfIncome.set(option);
+       formState.sourceOfIncomeMenuVisible.set(false);
+   
+       if (option === "Other") {
+         formState.showCustomIncomeInput.set(true);  // Show the text input
+       } else {
+         formState.showCustomIncomeInput.set(false); // Hide the input if another option is selected
+         formState.customIncomeSource.set("");       // Clear previous input
+       }
+     }}
+     title={option}
+   />
+   
+    ))}
+  </Menu>
+</View>
+{formState.showCustomIncomeInput.get() && (
+  <TextInput
+    label="Specify Other Income Source"
+    mode="outlined"
+    value={formState.customIncomeSource.get()}
+    onChangeText={formState.customIncomeSource.set}
+    style={styles.input}
+  />
+)}
+
 
           <Divider style={{ marginVertical: 10 }} />
 
           <View style={styles.toggleRow}>
-            <Text style={styles.subHeader}>Food Production:</Text>
+            <Text style={styles.subHeader}>Food Production (vegetable garden/raised animals for food):</Text>
             <Switch
               value={formState.foodProduction.get()}
               onValueChange={formState.foodProduction.set}
@@ -227,6 +274,40 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 5 },
   button: { marginTop: 20, padding: 10 },
   errorText: { color: "red", fontSize: 14 },
+
+  // Updated dropdown styles to make it visible
+  dropdownContainer: {
+    borderWidth: 1,
+    borderColor: "#007AFF", // Blue border
+    borderRadius: 5,
+    backgroundColor: "#fff",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginTop: 5,
+  },
+  dropdownButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#007AFF", // Blue border
+    borderRadius: 5,
+    backgroundColor: "#fff",
+    width: "100%", // Ensure full width
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#000000", // Darker color for visibility
+    flex: 1, // Ensures text is properly aligned
+  },
+  dropdownIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "#007AFF", // Dropdown icon color
+  },
 });
+
+
 
 export default observer(NewHouseholdForm);
