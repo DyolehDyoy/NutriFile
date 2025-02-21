@@ -14,7 +14,6 @@ const AddMemberScreen = () => {
   const { householdId } = useLocalSearchParams();
   const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
   
-  
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [relationship, setRelationship] = useState("");
@@ -23,6 +22,7 @@ const AddMemberScreen = () => {
   const [dateofbirth, setdateofbirth] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [classification, setClassification] = useState("");
+  const [healthrisk, setHealthRisk] = useState("");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
@@ -31,69 +31,110 @@ const AddMemberScreen = () => {
     setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
       setdateofbirth(selectedDate);
+
+      // Calculate age
+      const now = new Date();
+      let calculatedAge = now.getFullYear() - selectedDate.getFullYear();
+      const m = now.getMonth() - selectedDate.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < selectedDate.getDate())) {
+        calculatedAge--;
+      }
+      setAge(calculatedAge.toString());
+
+      // Calculate classification
+      const diffDays = (now - selectedDate) / (1000 * 3600 * 24);
+      let autoClassification = "";
+      if (diffDays <= 60) {
+        autoClassification = "Newborn (0-60 days)";
+      } else if (diffDays <= 335) {
+        autoClassification = "Infant (61 days-11months)";
+      } else if (calculatedAge < 5) {
+        autoClassification = "Under 5 (1-4 years old)";
+      } else if (calculatedAge < 10) {
+        autoClassification = "School Aged Children (5-9 years old)";
+      } else if (calculatedAge < 60) {
+        autoClassification = "Adult 18-59 years old";
+      } else {
+        autoClassification = "Senior citizen (60 years old above)";
+      }
+      setClassification(autoClassification);
     }
   };
+
   useEffect(() => {
     console.log("✅ Household ID received:", householdId);
     console.log("🔍 Parsed Household ID:", parsedHouseholdId);
-}, [householdId, parsedHouseholdId]);
+  }, [householdId, parsedHouseholdId]);
 
-  
   const saveMemberData = async () => {
     try {
-        // ✅ Check if householdId is provided
-        if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
-          Alert.alert("Error", "Household ID is missing or invalid.");
-          return;
+      // Check if householdId is provided
+      if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
+        Alert.alert("Error", "Household ID is missing or invalid.");
+        return;
       }
-      
 
-        const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
+      // Validate required fields
+      if (
+        !firstName.trim() ||
+        !lastName.trim() ||
+        !relationship ||
+        !sex ||
+        !dateofbirth ||
+        !educationLevel
+      ) {
+        Alert.alert("Incomplete Data", "Please fill in all required fields.");
+        return;
+      }
 
-        console.log("🛠️ DEBUG: Member Data Before Insert:", {
-            firstName,
-            lastName,
-            relationship,
-            sex,
-            age,
-            dateofbirth: formattedDOB,
-            classification,
-            weight,
-            height,
-            educationLevel,
-            householdid: householdId, // ✅ Use dynamic householdId
-        });
+      const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
 
-        const newMember = {
-            firstName,
-            lastName,
-            relationship,
-            sex,
-            age,
-            dateofbirth: formattedDOB,
-            classification,
-            weight,
-            height,
-            educationLevel,
-            householdid: parsedHouseholdId,
-          };
+      console.log("🛠️ DEBUG: Member Data Before Insert:", {
+        firstName,
+        lastName,
+        relationship,
+        sex,
+        age,
+        dateofbirth: formattedDOB,
+        classification,
+        healthrisk,
+        weight,
+        height,
+        educationLevel,
+        householdid: householdId,
+      });
 
-        const memberId = await insertMember(newMember);
-        if (memberId) {
-            console.log(`✅ New member saved with ID: ${memberId}`);
-            await syncWithSupabase();
-            Alert.alert("Success", "Member data saved successfully.");
-            console.log("New member ID is:", memberId);
-            router.push({ pathname: "/memberHealthInfo", params: { memberId: memberId } });
-          } else {
-            Alert.alert("Error", "Failed to save member data.");
-        }
+      const newMember = {
+        firstName,
+        lastName,
+        relationship,
+        sex,
+        age,
+        dateofbirth: formattedDOB,
+        classification,
+        healthrisk,
+        weight,
+        height,
+        educationLevel,
+        householdid: parsedHouseholdId,
+      };
+
+      const memberId = await insertMember(newMember);
+      if (memberId) {
+        console.log(`✅ New member saved with ID: ${memberId}`);
+        await syncWithSupabase();
+        Alert.alert("Success", "Member data saved successfully.");
+        console.log("New member ID is:", memberId);
+        // Navigate to memberHealthInfo screen, passing memberId
+        router.push({ pathname: "/memberHealthInfo", params: { memberId: memberId } });
+      } else {
+        Alert.alert("Error", "Failed to save member data.");
+      }
     } catch (error) {
-        console.error("❌ Error saving member data:", error);
-        Alert.alert("Error", "An error occurred while saving the data.");
+      console.error("❌ Error saving member data:", error);
+      Alert.alert("Error", "An error occurred while saving the data.");
     }
   };
-  
 
   return (
     <ScrollView style={styles.container}>
@@ -123,16 +164,12 @@ const AddMemberScreen = () => {
         </View>
       </RadioButton.Group>
 
-      <Text style={styles.subHeader}>Age:</Text>
-      <TextInput label="Age" mode="outlined" value={age} onChangeText={setAge} keyboardType="numeric" style={styles.inputSmall} />
-      
-
       <Text style={styles.subHeader}>Date of Birth</Text>
       <TouchableOpacity onPress={() => setShowDatePicker(true)}>
         <TextInput
           label="Select Date"
           mode="outlined"
-          value={ dateofbirth? format(dateofbirth, "yyyy-MM-dd") : ""}
+          value={dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : ""}
           editable={false}
           style={styles.input}
           right={<TextInput.Icon icon="calendar" onPress={() => setShowDatePicker(true)} />}
@@ -147,20 +184,40 @@ const AddMemberScreen = () => {
         />
       )}
 
-      <Text style={styles.subHeader}>Classification by Age/Health Risk Group</Text>
+      <Text style={styles.subHeader}>Age:</Text>
+      <TextInput
+        label="Age"
+        mode="outlined"
+        value={age}
+        onChangeText={setAge}
+        keyboardType="numeric"
+        style={styles.inputSmall}
+      />
+
+      <Text style={styles.subHeader}>Classification by Age</Text>
       <RNPickerSelect
         onValueChange={setClassification}
+        value={classification}
         items={[
           { label: "Newborn (0-60 days)", value: "Newborn (0-60 days)" },
           { label: "Infant (61 days-11months)", value: "Infant (61 days-11months)" },
           { label: "Under 5 (1-4 years old)", value: "Under 5 (1-4 years old)" },
           { label: "School Aged Children (5-9 years old)", value: "School Aged Children (5-9 years old)" },
+          { label: "Senior citizen (60 years old above)", value: "Senior citizen (60 years old above)" },
+          { label: "Adult 18-59 years old", value: "Adult 18-59 years old" },
+        ]}
+        style={styles.pickerSelectStyles}
+      />
+
+      <Text style={styles.subHeader}>Health Risk Group</Text>
+      <RNPickerSelect
+        onValueChange={setHealthRisk}
+        items={[
           { label: "Adolescent Pregnant", value: "Adolescent Pregnant" },
           { label: "Post Partum (upon birth 6-8 weeks)", value: "Post Partum (upon birth 6-8 weeks)" },
           { label: "Reproductive Age (not pregnant) 15-49 years old", value: "Reproductive Age (not pregnant) 15-49 years old" },
-          { label: "Senior citizen (60 years old above)", value: "Senior citizen (60 years old above)" },
-          { label: "Adult 18-59 years old", value: "Adult 18-59 years old" },
           { label: "Persons with Disability", value: "Persons with Disability" },
+          { label: "None of the above", value: "None of the above" },
         ]}
         style={styles.pickerSelectStyles}
       />
@@ -191,7 +248,6 @@ const AddMemberScreen = () => {
       <Button mode="contained" style={styles.button} onPress={saveMemberData}>
         Save Member
       </Button>
-
     </ScrollView>
   );
 };
@@ -205,7 +261,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between" },
   radioContainer: { flexDirection: "row", alignItems: "center" },
   button: { marginTop: 20 },
-
   pickerSelectStyles: {
     inputIOS: {
       fontSize: 16,

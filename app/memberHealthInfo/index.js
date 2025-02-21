@@ -1,31 +1,15 @@
 import React, { useState } from "react";
-import { insertMemberHealthInfo } from "../database"; // Import function
-import { useLocalSearchParams, useRouter } from "expo-router"; // ✅ Import for getting memberId
-
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import {
-  Text,
-  TextInput,
-  Button,
-  RadioButton,
-  Card,
-  Divider,
-} from "react-native-paper";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { View, ScrollView, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { Text, TextInput, Button, RadioButton, Card, Divider } from "react-native-paper";
+import database from "../database"; // Import the default export
 
 const MemberHealthInfoScreen = () => {
   const router = useRouter();
-  const { memberId } = useLocalSearchParams(); // ✅ Get memberId from navigation params
-
-  // Convert memberId to an integer (avoid issues with string values)
+  const { memberId } = useLocalSearchParams();
   const parsedMemberId = memberId ? parseInt(memberId, 10) : null;
 
-  // Existing states
+  // States for health info
   const [philHealth, setPhilHealth] = useState("");
   const [familyPlanning, setFamilyPlanning] = useState("");
   const [smoker, setSmoker] = useState("");
@@ -42,20 +26,15 @@ const MemberHealthInfoScreen = () => {
   const [loading, setLoading] = useState(false);
 
   const handleNext = async () => {
-    console.log("parsedMemberId:", parsedMemberId);
-
     try {
       if (!parsedMemberId) {
-        console.log("❌ No parsedMemberId, returning");
         Alert.alert("Error", "Missing member ID. Please try again.");
         return;
       }
 
-      console.log("✅ Setting loading to true now...");
       setLoading(true);
-      console.log("✅ Loading set to true, continuing...");
 
-      // If the user typed something in the text field, we always override the radio choice.
+      // If the user typed something in the text field, override the radio choice
       let finalPhysicalActivity = physicalActivity.trim();
       if (specificPhysicalActivity.trim()) {
         finalPhysicalActivity = specificPhysicalActivity.trim();
@@ -66,33 +45,34 @@ const MemberHealthInfoScreen = () => {
         finalMorbidity = specify.trim();
       }
 
+      // Build the object to insert into memberhealthinfo
       const healthData = {
         memberid: parsedMemberId,
-        philHealth,
-        familyPlanning,
-        smoker,
+        philhealth: philHealth,
+        familyplanning: familyPlanning,
+        smoker: smoker,
         alcoholdrinker: alcoholDrinker,
-        physicalActivity: finalPhysicalActivity,
+        physicalactivity: finalPhysicalActivity,
         morbidity: finalMorbidity,
       };
 
       console.log("📌 HealthData object created:", healthData);
 
-      const healthInfoId = await insertMemberHealthInfo(healthData);
+      // Insert a new row into the memberhealthinfo table
+      const healthInfoId = await database.insertMemberHealthInfo(healthData);
       console.log("✅ insertMemberHealthInfo returned:", healthInfoId);
 
       if (healthInfoId) {
-        console.log(`✅ Member health info saved with ID: ${healthInfoId}`);
+        // Force an immediate sync to push data to Supabase
+        await database.syncWithSupabase();
         Alert.alert("Success", "Health information saved successfully!");
-        router.push("/immunization");
-        console.log("✅ Pushed to /immunization");
+        // Navigate to immunization screen
+        router.push({ pathname: "/immunization", params: { memberId: memberId } });
       } else {
-        console.log("❌ insertMemberHealthInfo returned null/undefined");
         Alert.alert("Error", "Failed to save health info.");
       }
 
       setLoading(false);
-      console.log("✅ Loading set to false, handleNext finished.");
     } catch (err) {
       console.error("❌ Error inside handleNext:", err);
       Alert.alert("Error", "A runtime error occurred in handleNext.");
@@ -120,13 +100,8 @@ const MemberHealthInfoScreen = () => {
       {/* Family Planning */}
       <Card style={styles.card}>
         <Card.Content>
-          <Text style={styles.subHeader}>
-            Family Planning (For reproductive age only)
-          </Text>
-          <RadioButton.Group
-            onValueChange={setFamilyPlanning}
-            value={familyPlanning}
-          >
+          <Text style={styles.subHeader}>Family Planning (For reproductive age only)</Text>
+          <RadioButton.Group onValueChange={setFamilyPlanning} value={familyPlanning}>
             <View style={styles.radioContainer}>
               <RadioButton.Item label="Yes" value="Yes" />
               <RadioButton.Item label="No" value="No" />
@@ -149,10 +124,7 @@ const MemberHealthInfoScreen = () => {
           <Divider style={styles.divider} />
 
           <Text style={styles.subHeader}>Alcohol drinker</Text>
-          <RadioButton.Group
-            onValueChange={setAlcoholDrinker}
-            value={alcoholDrinker}
-          >
+          <RadioButton.Group onValueChange={setAlcoholDrinker} value={alcoholDrinker}>
             <View style={styles.radioContainer}>
               <RadioButton.Item label="Yes" value="Yes" />
               <RadioButton.Item label="No" value="No" />
@@ -165,17 +137,13 @@ const MemberHealthInfoScreen = () => {
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.subHeader}>Physical Activity</Text>
-          <RadioButton.Group
-            onValueChange={setPhysicalActivity}
-            value={physicalActivity}
-          >
+          <RadioButton.Group onValueChange={setPhysicalActivity} value={physicalActivity}>
             <View style={styles.radioContainer}>
               <RadioButton.Item label="Yes" value="Yes" />
               <RadioButton.Item label="No" value="No" />
             </View>
           </RadioButton.Group>
 
-          {/* If user selected "Yes", show text input for the actual activity */}
           {physicalActivity === "Yes" && (
             <TextInput
               label="Specify physical activity"
@@ -199,7 +167,6 @@ const MemberHealthInfoScreen = () => {
             </View>
           </RadioButton.Group>
 
-          {/* If "Presence", let the user specify the condition */}
           {morbidity === "Presence" && (
             <TextInput
               label="Please specify condition"
@@ -212,16 +179,7 @@ const MemberHealthInfoScreen = () => {
         </Card.Content>
       </Card>
 
-      {/* Next Button */}
-      <Button
-        mode="contained"
-        style={styles.button}
-        disabled={loading}
-        onPress={() => {
-          console.log("🔍 Button pressed: handleNext starting...");
-          handleNext();
-        }}
-      >
+      <Button mode="contained" style={styles.button} disabled={loading} onPress={handleNext}>
         {loading ? <ActivityIndicator color="white" /> : "Save & Next"}
       </Button>
     </ScrollView>
@@ -230,29 +188,13 @@ const MemberHealthInfoScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
-  header: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-  },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
   subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
   input: { marginTop: 8, marginBottom: 12 },
-  radioContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginVertical: 5,
-  },
+  radioContainer: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", marginVertical: 5 },
   divider: { marginVertical: 10 },
   button: { marginTop: 20, padding: 10 },
-  card: {
-    marginBottom: 16,
-    padding: 10,
-    backgroundColor: "white",
-    borderRadius: 10,
-    elevation: 2,
-  },
+  card: { marginBottom: 16, padding: 10, backgroundColor: "white", borderRadius: 10, elevation: 2 },
 });
 
 export default MemberHealthInfoScreen;
