@@ -6,8 +6,14 @@ import database from "../database"; // Import the default export
 
 const MemberHealthInfoScreen = () => {
   const router = useRouter();
-  const { memberId } = useLocalSearchParams();
+  // Extract both householdId and memberId from route params
+  const params = useLocalSearchParams();
+  console.log("Route parameters:", params);
+  const { householdId, memberId } = params;
+  const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
   const parsedMemberId = memberId ? parseInt(memberId, 10) : null;
+  console.log("Parsed householdId from route:", parsedHouseholdId);
+  console.log("Parsed memberId from route:", parsedMemberId);
 
   // States for health info
   const [philHealth, setPhilHealth] = useState("");
@@ -45,7 +51,7 @@ const MemberHealthInfoScreen = () => {
         finalMorbidity = specify.trim();
       }
 
-      // Build the object to insert into memberhealthinfo
+      // Build the object to insert into memberhealthinfo (including householdid)
       const healthData = {
         memberid: parsedMemberId,
         philhealth: philHealth,
@@ -54,6 +60,7 @@ const MemberHealthInfoScreen = () => {
         alcoholdrinker: alcoholDrinker,
         physicalactivity: finalPhysicalActivity,
         morbidity: finalMorbidity,
+        householdid: parsedHouseholdId,
       };
 
       console.log("📌 HealthData object created:", healthData);
@@ -66,8 +73,11 @@ const MemberHealthInfoScreen = () => {
         // Force an immediate sync to push data to Supabase
         await database.syncWithSupabase();
         Alert.alert("Success", "Health information saved successfully!");
-        // Navigate to immunization screen
-        router.push({ pathname: "/immunization", params: { memberId: memberId } });
+        // Navigate to immunization screen passing both memberId and householdId
+        router.push({ 
+          pathname: "/immunization", 
+          params: { memberId: parsedMemberId, householdId: parsedHouseholdId } 
+        });
       } else {
         Alert.alert("Error", "Failed to save health info.");
       }

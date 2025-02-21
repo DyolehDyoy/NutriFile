@@ -14,9 +14,13 @@ const ImmunizationScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   console.log("Route parameters:", params);
-  const { memberId } = useLocalSearchParams();
+
+  // Extract both householdId and memberId from route params
+  const { householdId, memberId } = params;
+  const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
   const parsedMemberId = memberId ? parseInt(memberId, 10) : null;
-  console.log("memberId from route:", memberId);
+  console.log("Parsed householdId from route:", parsedHouseholdId);
+  console.log("Parsed memberId from route:", parsedMemberId);
 
   // Immunization States
   const [bcg, setBcg] = useState("");
@@ -31,8 +35,8 @@ const ImmunizationScreen = () => {
   const [savedImmunizationId, setSavedImmunizationId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Function to save immunization data and sync to Supabase
-  const handleSave = async () => {
+  // Combined function: save immunization data and then navigate to AddMember screen
+  const handleSaveAndAddMember = async () => {
     if (!parsedMemberId) {
       Alert.alert("Error", "Missing member ID.");
       return;
@@ -47,6 +51,7 @@ const ImmunizationScreen = () => {
       pneumococcal,
       mmr,
       remarks,
+      householdid: parsedHouseholdId, // Added householdid here
     };
     console.log("📌 Saving immunization data:", immunData);
     
@@ -57,19 +62,19 @@ const ImmunizationScreen = () => {
       await database.syncWithSupabase();
       Alert.alert("Success", "Immunization data saved successfully!");
       setSavedImmunizationId(immunizationId);
+      // Navigate to AddMember screen only if householdId is available
+      if (!parsedHouseholdId) {
+        Alert.alert("Error", "Household ID is missing. Cannot add new member.");
+      } else {
+        router.push({
+          pathname: "/addMember",
+          params: { householdId: parsedHouseholdId },
+        });
+      }
     } else {
       Alert.alert("Error", "Failed to save immunization data.");
     }
     setLoading(false);
-  };
-
-  // Function to navigate to Add Member screen only after immunization data is saved
-  const handleAddMember = () => {
-    if (!savedImmunizationId) {
-      Alert.alert("Warning", "Please save immunization data first before adding a new member.");
-    } else {
-      router.push("/addMember");
-    }
   };
 
   return (
@@ -170,22 +175,15 @@ const ImmunizationScreen = () => {
         </Card.Content>
       </Card>
 
-      {/* Buttons: Save and Add Member */}
+      {/* Single Button: Save and Add New Member */}
       <View style={styles.buttonContainer}>
         <Button
           mode="contained"
           style={styles.saveButton}
-          onPress={handleSave}
+          onPress={handleSaveAndAddMember}
           disabled={loading}
         >
-          {loading ? <ActivityIndicator color="white" /> : "Save"}
-        </Button>
-        <Button
-          mode="contained"
-          style={styles.addButton}
-          onPress={handleAddMember}
-        >
-          Add Member
+          {loading ? <ActivityIndicator color="white" /> : "Save and Add New Member"}
         </Button>
       </View>
     </ScrollView>
@@ -193,60 +191,14 @@ const ImmunizationScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: "#f9f9f9",
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 24,
-    textAlign: "center",
-    color: "#333",
-  },
-  subHeader: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginTop: 16,
-    marginBottom: 8,
-    color: "#444",
-  },
-  input: {
-    marginTop: 8,
-    marginBottom: 12,
-    backgroundColor: "#fff",
-  },
-  radioContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginVertical: 8,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 24,
-  },
-  saveButton: {
-    backgroundColor: "#A07D40",
-    flex: 1,
-    marginRight: 8,
-    paddingVertical: 12,
-  },
-  addButton: {
-    backgroundColor: "#205C3B",
-    flex: 1,
-    marginLeft: 8,
-    paddingVertical: 12,
-  },
-  card: {
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: "white",
-    borderRadius: 12,
-    elevation: 3,
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
+  subHeader: { fontSize: 18, fontWeight: "600", marginTop: 16, marginBottom: 8, color: "#444" },
+  input: { marginTop: 8, marginBottom: 12, backgroundColor: "#fff" },
+  radioContainer: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", marginVertical: 8 },
+  buttonContainer: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
+  saveButton: { backgroundColor: "#205C3B", paddingVertical: 12, paddingHorizontal: 16 },
+  card: { marginBottom: 20, padding: 16, backgroundColor: "white", borderRadius: 12, elevation: 3 },
 });
 
 export default ImmunizationScreen;

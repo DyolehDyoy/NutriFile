@@ -126,7 +126,11 @@ const AddMemberScreen = () => {
         Alert.alert("Success", "Member data saved successfully.");
         console.log("New member ID is:", memberId);
         // Navigate to memberHealthInfo screen, passing memberId
-        router.push({ pathname: "/memberHealthInfo", params: { memberId: memberId } });
+        router.push({
+          pathname: "/memberHealthInfo",
+          params: { memberId: memberId, householdId: householdId },
+        });
+        
       } else {
         Alert.alert("Error", "Failed to save member data.");
       }

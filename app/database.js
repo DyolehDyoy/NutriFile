@@ -58,7 +58,7 @@ export const openDatabase = async () => {
     db = await SQLite.openDatabaseAsync("nutrifile.db");
     console.log("✅ Database opened successfully.");
     // Optionally, uncommment the following line to reset on startup:
-    await resetLocalDatabase();
+    //await resetLocalDatabase();
   }
   return db;
 };
@@ -133,8 +133,10 @@ export const createTables = async () => {
       alcoholdrinker TEXT,
       physicalactivity TEXT,
       morbidity TEXT,
+      householdid INTEGER,
       synced INTEGER DEFAULT 0,
       FOREIGN KEY (memberid) REFERENCES addmember(id) ON DELETE CASCADE
+      FOREIGN KEY (householdid) REFERENCES household(id) ON DELETE CASCADE
     );
   `);
 
@@ -150,8 +152,10 @@ export const createTables = async () => {
       pneumococcal TEXT,
       mmr TEXT,
       remarks TEXT,
+      householdid INTEGER,
       synced INTEGER DEFAULT 0,
       FOREIGN KEY (memberid) REFERENCES addmember(id) ON DELETE CASCADE
+      FOREIGN KEY (householdid) REFERENCES household(id) ON DELETE CASCADE
     );
   `);
 
@@ -235,7 +239,7 @@ export const insertMealPattern = async (householdid, data) => {
   }
 };
 
-// Insert Member – now only inserts basic columns
+// Insert Member 
 export const insertMember = async (data) => {
   const database = await openDatabase();
   console.log("🛠️ DEBUG: insertMember Data Before Insert:", JSON.stringify(data, null, 2));
@@ -322,9 +326,10 @@ export const insertMemberHealthInfo = async (data) => {
   console.log("📌 Inserting new member health info...");
   try {
     await database.runAsync(
-      `INSERT INTO memberhealthinfo (memberid, philhealth, familyplanning, smoker, alcoholdrinker, physicalactivity, morbidity, synced)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO memberhealthinfo (householdid, memberid, philhealth, familyplanning, smoker, alcoholdrinker, physicalactivity, morbidity, synced)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
+        data.householdid,
         data.memberid,
         data.philhealth || "No",
         data.familyplanning || "No",
@@ -354,13 +359,14 @@ export const insertImmunization = async (data) => {
   }
   try {
     await database.runAsync(
-      `INSERT INTO immunization (memberid, bcg, hepatitis, pentavalent, oralpolio, pneumococcal, mmr, remarks, synced)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO immunization (householdid, memberid, bcg, hepatitis, pentavalent, oralpolio, pneumococcal, mmr, remarks, synced)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
+        data.householdid,
         data.memberid,
         data.bcg,
         data.hepatitis,
-        data.pentavalent,
+        data.pentavalent, 
         data.oralPolio,
         data.pneumococcal,
         data.mmr,
