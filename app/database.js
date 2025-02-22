@@ -111,6 +111,7 @@ export const createTables = async () => {
       relationship TEXT,
       sex TEXT,
       dateofbirth DATE,
+      age, TEXT
       classification TEXT,
       healthrisk TEXT,
       weight FLOAT,

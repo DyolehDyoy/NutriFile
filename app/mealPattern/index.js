@@ -197,6 +197,7 @@ const MealPatternScreen = () => {
             value={formState.checkupFrequency.get()}
             onValueChange={formState.checkupFrequency.set}
             buttons={[
+              { value: "Daily", label: "Daily" },
               { value: "Weekly", label: "Weekly" },
               { value: "Monthly", label: "Monthly" },
               { value: "Yearly", label: "Yearly" },

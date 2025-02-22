@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { 
   View, 
+  ScrollView, 
   TouchableOpacity, 
   StyleSheet, 
   ActivityIndicator, 
@@ -16,11 +17,10 @@ import supabase from "../supabaseClient";
 const HouseholdEditScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [household, setHousehold] = useState(null);
+  const [household, setHousehold] = useState({});
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // ✅ Fetch household details by ID
   useEffect(() => {
     const fetchHousehold = async () => {
       setLoading(true);
@@ -32,9 +32,9 @@ const HouseholdEditScreen = () => {
           .single();
 
         if (error) throw error;
-        setHousehold(data);
+        console.log("Fetched Household Data:", data); // Debugging log
+        setHousehold(data || {});
       } catch (error) {
-        console.error("❌ Error fetching household:", error.message);
         Alert.alert("Error", "Failed to load household data.");
         router.back();
       } finally {
@@ -45,22 +45,19 @@ const HouseholdEditScreen = () => {
     if (id) fetchHousehold();
   }, [id]);
 
-  // ✅ Handle Save
   const handleSave = async () => {
-    if (!household) return;
-
     try {
       const { error } = await supabase
         .from("household")
-        .update(household)
+        .update({ ...household })
         .eq("id", id);
 
       if (error) throw error;
 
-      Alert.alert("Success", "Household details updated!");
-      router.push("/households");
+      Alert.alert("Success", "Household details updated!", [
+        { text: "OK", onPress: () => router.push({ pathname: "/editMealPattern", params: { id } }) }
+      ]);
     } catch (error) {
-      console.error("❌ Error updating household:", error.message);
       Alert.alert("Error", "Failed to update household.");
     }
   };
@@ -68,7 +65,7 @@ const HouseholdEditScreen = () => {
   if (loading) return <ActivityIndicator size="large" color="#1662C6" style={styles.loading} />;
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <Text style={styles.header}>Edit Household</Text>
 
       <Card style={styles.card}>
@@ -76,7 +73,7 @@ const HouseholdEditScreen = () => {
           <TextInput
             label="Household Number"
             mode="outlined"
-            value={household.householdnumber}
+            value={household.householdnumber || ""}
             onChangeText={(text) => setHousehold({ ...household, householdnumber: text })}
             style={styles.input}
           />
@@ -84,7 +81,7 @@ const HouseholdEditScreen = () => {
           <TextInput
             label="Sitio / Purok"
             mode="outlined"
-            value={household.sitio}
+            value={household.sitio || ""}
             onChangeText={(text) => setHousehold({ ...household, sitio: text })}
             style={styles.input}
           />
@@ -93,7 +90,7 @@ const HouseholdEditScreen = () => {
           <TouchableOpacity onPress={() => setShowDatePicker(true)}>
             <TextInput
               mode="outlined"
-              value={household.dateofvisit}
+              value={household.dateofvisit || ""}
               editable={false}
               style={styles.input}
               right={<TextInput.Icon icon="calendar" />}
@@ -102,7 +99,7 @@ const HouseholdEditScreen = () => {
 
           {showDatePicker && (
             <DateTimePicker
-              value={new Date(household.dateofvisit)}
+              value={household.dateofvisit ? new Date(household.dateofvisit) : new Date()}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={(event, selectedDate) => {
@@ -122,7 +119,7 @@ const HouseholdEditScreen = () => {
               { label: "Absence", value: "Absence" },
             ]}
             style={pickerSelectStyles}
-            value={household.toilet}
+            value={household.toilet || ""}
           />
 
           <Text style={styles.subHeader}>Source of Water</Text>
@@ -134,7 +131,7 @@ const HouseholdEditScreen = () => {
               { label: "Tabay", value: "Tabay" },
             ]}
             style={pickerSelectStyles}
-            value={household.sourceofwater}
+            value={household.sourceofwater || ""}
           />
 
           <Text style={styles.subHeader}>Source of Income</Text>
@@ -147,7 +144,30 @@ const HouseholdEditScreen = () => {
               { label: "Other", value: "Other" },
             ]}
             style={pickerSelectStyles}
-            value={household.sourceofincome}
+            value={household.sourceofincome || ""}
+          />
+
+          <Text style={styles.subHeader}>Food Production</Text>
+          <RNPickerSelect
+            onValueChange={(value) => setHousehold({ ...household, foodproduction: value })}
+            items={[
+              { label: "Yes", value: "Yes" },
+              { label: "No", value: "No" },
+            ]}
+            style={pickerSelectStyles}
+            value={household.foodproduction || ""}
+          />
+
+          <Text style={styles.subHeader}>4Ps Membership</Text>
+          <RNPickerSelect
+            onValueChange={(value) => setHousehold({ ...household, membership4ps: value })}
+            items={[
+              { label: "Yes", value: "Yes" },
+              { label: "No", value: "No" },
+            ]}
+            style={pickerSelectStyles}
+            value={household.membership4ps || undefined}
+            placeholder={{ label: "Select an item...", value: null }}
           />
 
           <Button mode="contained" style={styles.saveButton} onPress={handleSave}>
@@ -155,13 +175,14 @@ const HouseholdEditScreen = () => {
           </Button>
         </Card.Content>
       </Card>
-    </View>
+    </ScrollView>
   );
 };
 
 // ✅ Styles
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  scrollContent: { flexGrow: 1, padding: 20 },
   header: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 16, color: "#1662C6" },
   subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16, marginBottom: 8, color: "#333" },
   input: { marginBottom: 16, backgroundColor: "#fff" },
@@ -170,7 +191,7 @@ const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center" },
 });
 
-// ✅ PickerSelect Styles
+// ✅ Fixed PickerSelect Styles
 const pickerSelectStyles = {
   inputIOS: {
     fontSize: 16,

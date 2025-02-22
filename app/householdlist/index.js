@@ -6,6 +6,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Vibration,
+  Alert,
 } from "react-native";
 import { Text, FAB } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -21,7 +22,7 @@ const HouseholdListScreen = () => {
   const rowRefs = useRef(new Map());
   const openRowRef = useRef(null);
 
-  // Fetch households from Supabase
+  // ✅ Fetch households from Supabase
   const fetchHouseholds = async () => {
     try {
       setLoading(true);
@@ -33,11 +34,16 @@ const HouseholdListScreen = () => {
       if (error) throw error;
       setHouseholds(data || []);
     } catch (error) {
+      Alert.alert("Error", "Failed to fetch households.");
       console.error("Error fetching households:", error.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchHouseholds();
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -45,25 +51,36 @@ const HouseholdListScreen = () => {
     setRefreshing(false);
   }, []);
 
-  useEffect(() => {
-    fetchHouseholds();
-  }, []);
-
-  const handleDelete = async (id) => {
-    try {
-      const { error } = await supabase.from("household").delete().match({ id });
-
-      if (error) throw error;
-
-      rowRefs.current.get(id)?.closeRow();
-      openRowRef.current = null;
-      setHouseholds((prev) => prev.filter((household) => household.id !== id));
-      Vibration.vibrate(100);
-    } catch (error) {
-      console.error("Error deleting household:", error.message);
-    }
+  // ✅ Navigate to Family Members List when clicking a household
+  const handleHouseholdClick = (householdid) => {
+    router.push({ pathname: "/familymemberslist", params: { householdid } });
   };
 
+  // ✅ Delete household
+  const handleDelete = async (id) => {
+    Alert.alert("Confirm Delete", "Are you sure you want to delete this household?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const { error } = await supabase.from("household").delete().match({ id });
+            if (error) throw error;
+
+            rowRefs.current.get(id)?.closeRow();
+            openRowRef.current = null;
+            setHouseholds((prev) => prev.filter((household) => household.id !== id));
+            Vibration.vibrate(100);
+          } catch (error) {
+            console.error("Error deleting household:", error.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  // ✅ Swipe Left: Show "Edit" & "Delete" options for household
   const renderHiddenItem = ({ item }) => (
     <View style={styles.rowBack}>
       <View style={styles.backButtonsContainer}>
@@ -72,7 +89,7 @@ const HouseholdListScreen = () => {
           onPress={() => {
             rowRefs.current.get(item.id)?.closeRow();
             openRowRef.current = null;
-            router.push(`/editHousehold?id=${item.id}`);
+            router.push({ pathname: "/editHousehold", params: { id: item.id } });
           }}
         >
           <MaterialCommunityIcons name="pencil" size={24} color="white" />
@@ -102,14 +119,12 @@ const HouseholdListScreen = () => {
         <SwipeListView
           data={households}
           keyExtractor={(item) => item.id.toString()}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
             <View style={styles.rowFrontContainer}>
               <TouchableOpacity
                 style={styles.rowFront}
-                onPress={() => router.push(`/editHousehold?id=${item.id}`)}
+                onPress={() => handleHouseholdClick(item.id)} // ✅ Navigate to family members list
               >
                 <MaterialCommunityIcons name="home-outline" size={28} color="#205C3B" />
                 <Text style={styles.cardText}>
@@ -146,6 +161,7 @@ const HouseholdListScreen = () => {
   );
 };
 
+// ✅ Styles for UI Components
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -192,38 +208,36 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rowBack: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    alignItems: "center",
+    backgroundColor: "transparent",
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     paddingLeft: 15,
     marginBottom: 10,
   },
   backButtonsContainer: {
-    flexDirection: 'row',
-    width: 140, // Match rightOpenValue
-    height: '100%',
+    flexDirection: "row",
+    width: 140,
+    height: "100%",
   },
   backButton: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    position: 'absolute',
-    top: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
     width: 70,
   },
   editButton: {
     backgroundColor: "#3498db",
     right: 70,
-    borderTopLeftRadius: 12,    // Added rounded corners
-    borderBottomLeftRadius: 12, // Added rounded corners
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
   deleteButton: {
     backgroundColor: "#e74c3c",
     right: 0,
-    borderTopRightRadius: 12,    // Added rounded corners
-    borderBottomRightRadius: 12, // Added rounded corners
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
   },
   swipeText: {
     color: "white",

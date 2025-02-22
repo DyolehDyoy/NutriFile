@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react"; // ✅ Import useEffect
-import { View, ScrollView, StyleSheet, Platform, TouchableOpacity, Alert } from "react-native";
-import { Text, TextInput, Button, RadioButton } from "react-native-paper";
+import { 
+  View, 
+  ScrollView, 
+  StyleSheet, 
+  Platform, 
+  TouchableOpacity, 
+  Alert 
+} from "react-native";
+import { Text, TextInput, Button, RadioButton, Card, Divider, Checkbox } from "react-native-paper";
 import RNPickerSelect from "react-native-picker-select";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -17,15 +24,35 @@ const AddMemberScreen = () => {
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [relationship, setRelationship] = useState("");
+  const [otherRelationship, setOtherRelationship] = useState(""); // New state for custom relationship input
   const [sex, setSex] = useState("");
   const [age, setAge] = useState("");
   const [dateofbirth, setdateofbirth] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [classification, setClassification] = useState("");
-  const [healthrisk, setHealthRisk] = useState("");
+  const [healthrisk, setHealthRisk] = useState(""); // replaced by selectedHealthRisks later
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
+
+  // New states for health risk multi-select dropdown UI
+  const [showHealthRiskDropdown, setShowHealthRiskDropdown] = useState(false);
+  const riskOptions = [
+    "Adolescent Pregnant",
+    "Post Partum (upon birth 6-8 weeks)",
+    "Reproductive Age (not pregnant) 15-49 years old",
+    "Persons with Disability",
+    "None of the above"
+  ];
+  const [selectedHealthRisks, setSelectedHealthRisks] = useState([]);
+
+  const toggleRisk = (risk) => {
+    if (selectedHealthRisks.includes(risk)) {
+      setSelectedHealthRisks(selectedHealthRisks.filter(r => r !== risk));
+    } else {
+      setSelectedHealthRisks([...selectedHealthRisks, risk]);
+    }
+  };
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === "ios");
@@ -41,7 +68,7 @@ const AddMemberScreen = () => {
       }
       setAge(calculatedAge.toString());
 
-      // Calculate classification
+      // Calculate classification based on the difference in days and age
       const diffDays = (now - selectedDate) / (1000 * 3600 * 24);
       let autoClassification = "";
       if (diffDays <= 60) {
@@ -68,7 +95,7 @@ const AddMemberScreen = () => {
 
   const saveMemberData = async () => {
     try {
-      // Check if householdId is provided
+      // ✅ Check if householdId is provided
       if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
         Alert.alert("Error", "Household ID is missing or invalid.");
         return;
@@ -87,32 +114,38 @@ const AddMemberScreen = () => {
         return;
       }
 
+      // If "Other" is selected, use the custom input; otherwise, use the selected value
+      const finalRelationship = relationship === "Other" ? otherRelationship : relationship;
+
+      // For health risk, join the selected array into a comma-separated string
+      const finalHealthRisk = selectedHealthRisks.join(", ");
+
       const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
 
       console.log("🛠️ DEBUG: Member Data Before Insert:", {
         firstName,
         lastName,
-        relationship,
+        relationship: finalRelationship,
         sex,
         age,
         dateofbirth: formattedDOB,
         classification,
-        healthrisk,
+        healthrisk: finalHealthRisk,
         weight,
         height,
         educationLevel,
-        householdid: householdId,
+        householdid: householdId, // ✅ Use dynamic householdId
       });
 
       const newMember = {
         firstName,
         lastName,
-        relationship,
+        relationship: finalRelationship,
         sex,
         age,
         dateofbirth: formattedDOB,
         classification,
-        healthrisk,
+        healthrisk: finalHealthRisk,
         weight,
         height,
         educationLevel,
@@ -125,7 +158,7 @@ const AddMemberScreen = () => {
         await syncWithSupabase();
         Alert.alert("Success", "Member data saved successfully.");
         console.log("New member ID is:", memberId);
-        // Navigate to memberHealthInfo screen, passing memberId
+        // Navigate to memberHealthInfo screen, passing memberId and householdId
         router.push({
           pathname: "/memberHealthInfo",
           params: { memberId: memberId, householdId: householdId },
@@ -159,6 +192,15 @@ const AddMemberScreen = () => {
         ]}
         style={styles.pickerSelectStyles}
       />
+      {relationship === "Other" && (
+        <TextInput 
+          label="Please specify relationship" 
+          mode="outlined" 
+          value={otherRelationship} 
+          onChangeText={setOtherRelationship} 
+          style={styles.input} 
+        />
+      )}
 
       <Text style={styles.subHeader}>Sex:</Text>
       <RadioButton.Group onValueChange={setSex} value={sex}>
@@ -201,7 +243,7 @@ const AddMemberScreen = () => {
       <Text style={styles.subHeader}>Classification by Age</Text>
       <RNPickerSelect
         onValueChange={setClassification}
-        value={classification}
+        value={classification}  // Pre-fill classification based on birthdate
         items={[
           { label: "Newborn (0-60 days)", value: "Newborn (0-60 days)" },
           { label: "Infant (61 days-11months)", value: "Infant (61 days-11months)" },
@@ -214,17 +256,30 @@ const AddMemberScreen = () => {
       />
 
       <Text style={styles.subHeader}>Health Risk Group</Text>
-      <RNPickerSelect
-        onValueChange={setHealthRisk}
-        items={[
-          { label: "Adolescent Pregnant", value: "Adolescent Pregnant" },
-          { label: "Post Partum (upon birth 6-8 weeks)", value: "Post Partum (upon birth 6-8 weeks)" },
-          { label: "Reproductive Age (not pregnant) 15-49 years old", value: "Reproductive Age (not pregnant) 15-49 years old" },
-          { label: "Persons with Disability", value: "Persons with Disability" },
-          { label: "None of the above", value: "None of the above" },
-        ]}
-        style={styles.pickerSelectStyles}
-      />
+      {/* Improved UI for Health Risk Group as a dropdown checkbox */}
+      <TouchableOpacity 
+        style={styles.healthRiskDropdown}
+        onPress={() => setShowHealthRiskDropdown(!showHealthRiskDropdown)}
+      >
+        <Text style={styles.healthRiskText}>
+          {selectedHealthRisks.length > 0
+            ? selectedHealthRisks.join(", ")
+            : "Select Health Risk Group"}
+        </Text>
+      </TouchableOpacity>
+      {showHealthRiskDropdown && (
+        <View style={styles.healthRiskContainer}>
+          {riskOptions.map((risk) => (
+            <View key={risk} style={styles.checkboxContainer}>
+              <Checkbox
+                status={selectedHealthRisks.includes(risk) ? "checked" : "unchecked"}
+                onPress={() => toggleRisk(risk)}
+              />
+              <Text style={styles.checkboxLabel}>{risk}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={styles.row}>
         <TextInput label="Weight (kg)" mode="outlined" value={weight} onChangeText={setWeight} keyboardType="numeric" style={styles.inputSmall} />
@@ -259,7 +314,7 @@ const AddMemberScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
   header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
-  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 16 },
+  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
   input: { marginBottom: 16 },
   inputSmall: { width: "48%", marginBottom: 16 },
   row: { flexDirection: "row", justifyContent: "space-between" },
@@ -288,6 +343,37 @@ const styles = StyleSheet.create({
       backgroundColor: "#f9f9f9",
       paddingRight: 30,
     },
+  },
+  healthRiskDropdown: {
+    borderWidth: 1,
+    borderColor: "gray",
+    borderRadius: 4,
+    backgroundColor: "#f9f9f9",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginBottom: 16,
+  },
+  healthRiskText: {
+    fontSize: 14,
+    color: "black",
+  },
+  healthRiskContainer: {
+    borderWidth: 1,
+    borderColor: "gray",
+    borderRadius: 4,
+    padding: 8,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  checkboxLabel: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: "black",
   },
 });
 
