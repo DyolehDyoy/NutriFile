@@ -36,7 +36,7 @@ const ImmunizationScreen = () => {
   const [loading, setLoading] = useState(false);
 
   // Combined function: save immunization data and then navigate to AddMember screen
-  const handleSaveAndAddMember = async () => {
+  const handleSaveImmunization = async () => {
     if (!parsedMemberId) {
       Alert.alert("Error", "Missing member ID.");
       return;
@@ -53,24 +53,25 @@ const ImmunizationScreen = () => {
       remarks,
       householdid: parsedHouseholdId, // Added householdid here
     };
-    console.log("📌 Saving immunization data:", immunData);
+    console.log("📌 Attempting to save immunization data:", immunData);
     
     // Insert the immunization data locally
     const immunizationId = await database.insertImmunization(immunData);
     if (immunizationId) {
       // Force an immediate sync so that the record is pushed to Supabase
       await database.syncWithSupabase();
-      Alert.alert("Success", "Immunization data saved successfully!");
-      setSavedImmunizationId(immunizationId);
-      // Navigate to AddMember screen only if householdId is available
-      if (!parsedHouseholdId) {
-        Alert.alert("Error", "Household ID is missing. Cannot add new member.");
-      } else {
-        router.push({
-          pathname: "/addMember",
-          params: { householdId: parsedHouseholdId },
-        });
-      }
+      Alert.alert("Success", "Immunization data saved successfully!", [
+        {
+          text: "OK",
+          onPress: () => {
+            router.push({
+              pathname: "/familymemberslist",
+              params: { householdid: parsedHouseholdId },
+            });
+          },
+        },
+      ]);      
+      
     } else {
       Alert.alert("Error", "Failed to save immunization data.");
     }
@@ -177,14 +178,10 @@ const ImmunizationScreen = () => {
 
       {/* Single Button: Save and Add New Member */}
       <View style={styles.buttonContainer}>
-        <Button
-          mode="contained"
-          style={styles.saveButton}
-          onPress={handleSaveAndAddMember}
-          disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="white" /> : "Save and Add New Member"}
-        </Button>
+      <Button mode="contained" style={styles.saveButton} onPress={handleSaveImmunization}>
+  {loading ? <ActivityIndicator color="white" /> : "Save"}
+</Button>
+
       </View>
     </ScrollView>
   );

@@ -149,12 +149,16 @@ const FamilyMembersListScreen = () => {
         />
       )}
 
-      <FAB
-        style={styles.fab}
-        icon="plus"
-        label="Add Member"
-        onPress={() => router.push({ pathname: "/addFamilyMember", params: { householdid } })}
-      />
+<FAB
+  style={styles.fab}
+  icon="plus"
+  label="Add Member"
+  onPress={() => {
+    console.log("🟢 Navigating to AddMember with Household ID:", householdid);
+    router.push({ pathname: "/addMember", params: { householdId: householdid } }); // ✅ Ensure parameter name matches
+  }}
+/>
+
     </View>
   );
 };
@@ -222,8 +226,8 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: "#e74c3c",
-    width: 80, // ✅ Full width like the reference image
-    height: 45, // ✅ Proper height
+    width: 80,
+    height: 45,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",

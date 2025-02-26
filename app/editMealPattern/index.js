@@ -112,30 +112,37 @@ const MealPatternEditScreen = observer(() => {
     formState.loading.set(true);
 
     const mealData = {
-      breakfast: formState.breakfast.get(),
-      lunch: formState.lunch.get(),
-      dinner: formState.dinner.get(),
-      foodbelief: formState.foodBelief.get() ? formState.foodBeliefText.get() : "No",
-      healthconsideration: formState.healthConsideration.get(),
-      whatifsick: formState.whatIfSick.get(),
-      checkupfrequency: formState.checkupFrequency.get(),
+        breakfast: formState.breakfast.get(),
+        lunch: formState.lunch.get(),
+        dinner: formState.dinner.get(),
+        foodbelief: formState.foodBelief.get() ? formState.foodBeliefText.get() : "No",
+        healthconsideration: formState.healthConsideration.get(),
+        whatifsick: formState.whatIfSick.get(),
+        checkupfrequency: formState.checkupFrequency.get(),
     };
 
     try {
-      const { error } = await supabase.from("mealpattern").update(mealData).eq("id", id);
+        const { error } = await supabase
+            .from("mealpattern")
+            .update(mealData)
+            .eq("id", id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      Alert.alert("Success", "Meal Pattern updated successfully!", [
-        { text: "OK", onPress: () => router.push("/mealpatterns") }
-      ]);
+        Alert.alert("Success", "Meal Pattern updated successfully!", [
+            {
+                text: "OK",
+                onPress: () => router.push("/householdList"), // ✅ Navigate to Household List
+            },
+        ]);
     } catch (error) {
-      console.error("❌ Supabase Update Error:", error.message);
-      Alert.alert("Error", `Failed to update meal pattern: ${error.message}`);
+        console.error("❌ Supabase Update Error:", error.message);
+        Alert.alert("Error", `Failed to update meal pattern: ${error.message}`);
     } finally {
-      formState.loading.set(false);
+        formState.loading.set(false);
     }
-  };
+};
+
 
   return (
     <ScrollView style={styles.container}>

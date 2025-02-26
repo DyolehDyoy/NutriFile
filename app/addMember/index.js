@@ -1,3 +1,4 @@
+import supabase from "../supabaseClient";  // ✅ Import Supabase client
 import React, { useState, useEffect } from "react"; // ✅ Import useEffect
 import { 
   View, 
@@ -94,84 +95,77 @@ const AddMemberScreen = () => {
   }, [householdId, parsedHouseholdId]);
 
   const saveMemberData = async () => {
+    console.log("📌 Debug: educationLevel before insert:", educationLevel);
+
     try {
-      // ✅ Check if householdId is provided
-      if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
-        Alert.alert("Error", "Household ID is missing or invalid.");
-        return;
-      }
+        if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
+            Alert.alert("Error", "Household ID is missing or invalid.");
+            return;
+        }
 
-      // Validate required fields
-      if (
-        !firstName.trim() ||
-        !lastName.trim() ||
-        !relationship ||
-        !sex ||
-        !dateofbirth ||
-        !educationLevel
-      ) {
-        Alert.alert("Incomplete Data", "Please fill in all required fields.");
-        return;
-      }
+        if (
+            !firstName.trim() ||
+            !lastName.trim() ||
+            !relationship ||
+            !sex ||
+            !dateofbirth ||
+            !educationLevel
+        ) {
+            Alert.alert("Incomplete Data", "Please fill in all required fields.");
+            return;
+        }
 
-      // If "Other" is selected, use the custom input; otherwise, use the selected value
-      const finalRelationship = relationship === "Other" ? otherRelationship : relationship;
+        const finalRelationship = relationship === "Other" ? otherRelationship : relationship;
+        const finalHealthRisk = selectedHealthRisks.join(", ");
+        const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
 
-      // For health risk, join the selected array into a comma-separated string
-      const finalHealthRisk = selectedHealthRisks.join(", ");
+        const newMember = {
+            firstname: firstName,  // ✅ Match Supabase column name
+            lastname: lastName,    // ✅ Match Supabase column name
+            relationship: finalRelationship,
+            sex,
+            age: age ? age.toString() : null, // ✅ Store age as text
+            dateofbirth: formattedDOB,
+            classification,  // ✅ This column exists in Supabase
+            healthrisk: finalHealthRisk || "",
+            weight: weight ? parseFloat(weight) : null,
+            height: height ? parseFloat(height) : null,
+            educationallevel: educationLevel || "",  // ✅ Corrected column name
+            householdid: parsedHouseholdId,
+        };
 
-      const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
+        console.log("🛠️ DEBUG: Member Data Before Insert:", newMember); // 🔍 Log before inserting
 
-      console.log("🛠️ DEBUG: Member Data Before Insert:", {
-        firstName,
-        lastName,
-        relationship: finalRelationship,
-        sex,
-        age,
-        dateofbirth: formattedDOB,
-        classification,
-        healthrisk: finalHealthRisk,
-        weight,
-        height,
-        educationLevel,
-        householdid: householdId, // ✅ Use dynamic householdId
-      });
+        const { data, error } = await supabase
+            .from("addmember")
+            .insert([newMember])
+            .select();
 
-      const newMember = {
-        firstName,
-        lastName,
-        relationship: finalRelationship,
-        sex,
-        age,
-        dateofbirth: formattedDOB,
-        classification,
-        healthrisk: finalHealthRisk,
-        weight,
-        height,
-        educationLevel,
-        householdid: parsedHouseholdId,
-      };
+        if (error) {
+            console.error("❌ Error inserting member data:", error.message);
+            Alert.alert("Error", "Failed to save member data.");
+            return;
+        }
 
-      const memberId = await insertMember(newMember);
-      if (memberId) {
-        console.log(`✅ New member saved with ID: ${memberId}`);
+        console.log("✅ Member inserted successfully!", data);
         await syncWithSupabase();
-        Alert.alert("Success", "Member data saved successfully.");
-        console.log("New member ID is:", memberId);
-        // Navigate to memberHealthInfo screen, passing memberId and householdId
-        router.push({
-          pathname: "/memberHealthInfo",
-          params: { memberId: memberId, householdId: householdId },
-        });
-        
-      } else {
-        Alert.alert("Error", "Failed to save member data.");
-      }
+        Alert.alert("Success", "Member data saved successfully!");
+
+        if (data.length > 0) {
+            router.push({
+                pathname: "/memberHealthInfo",
+                params: { memberId: data[0].id, householdId: parsedHouseholdId },
+            });
+        } else {
+            Alert.alert("Error", "Failed to retrieve new member ID.");
+        }
+
     } catch (error) {
-      console.error("❌ Error saving member data:", error);
-      Alert.alert("Error", "An error occurred while saving the data.");
+        console.error("❌ Error saving member data:", error);
+        Alert.alert("Error", "An error occurred while saving the data.");
     }
-  };
+};
+
 
   return (
     <ScrollView style={styles.container}>
