@@ -8,21 +8,7 @@ const DashboardScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Dashboard Card */}
-      <TouchableOpacity onPress={() => router.push("/dashboard")}>
-        <Card style={[styles.card, styles.blueCard]}>
-          <Card.Content>
-            <View style={styles.row}>
-              <IconButton icon="view-dashboard" size={24} color="#fff" />
-              <Text style={styles.cardTitle}>Dashboard</Text>
-            </View>
-            <Text style={styles.cardText}>
-              View key insights and manage household health data.
-            </Text>
-          </Card.Content>
-          <IconButton icon="chevron-right" size={24} color="#fff" style={styles.arrowIcon} />
-        </Card>
-      </TouchableOpacity>
+    
 
       {/* New Household Form Card */}
       <TouchableOpacity onPress={() => router.push("/newHouseholdForm")}>

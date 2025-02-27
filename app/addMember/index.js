@@ -80,6 +80,8 @@ const AddMemberScreen = () => {
         autoClassification = "Under 5 (1-4 years old)";
       } else if (calculatedAge < 10) {
         autoClassification = "School Aged Children (5-9 years old)";
+      } else if (calculatedAge < 18) {
+        autoClassification = "Young adult (10-17 years old";
       } else if (calculatedAge < 60) {
         autoClassification = "Adult 18-59 years old";
       } else {
@@ -243,6 +245,7 @@ const AddMemberScreen = () => {
           { label: "Infant (61 days-11months)", value: "Infant (61 days-11months)" },
           { label: "Under 5 (1-4 years old)", value: "Under 5 (1-4 years old)" },
           { label: "School Aged Children (5-9 years old)", value: "School Aged Children (5-9 years old)" },
+          { label: "Young adult (10-17 years old)", value: "Young adult (10-17 years old)" },
           { label: "Senior citizen (60 years old above)", value: "Senior citizen (60 years old above)" },
           { label: "Adult 18-59 years old", value: "Adult 18-59 years old" },
         ]}

@@ -132,7 +132,7 @@ const MealPatternEditScreen = observer(() => {
         Alert.alert("Success", "Meal Pattern updated successfully!", [
             {
                 text: "OK",
-                onPress: () => router.push("/householdList"), // ✅ Navigate to Household List
+                onPress: () => router.push("/householdlist"), // ✅ Navigate to Household List
             },
         ]);
     } catch (error) {

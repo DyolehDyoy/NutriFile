@@ -25,7 +25,6 @@ const FamilyMembersListScreen = () => {
 
   useEffect(() => {
     console.log("🔍 Household ID received:", householdid);
-
     if (!householdid) {
       Alert.alert("Error", "Household ID is missing.");
       router.back();
@@ -96,17 +95,31 @@ const FamilyMembersListScreen = () => {
     }
   };
 
+  // ✅ Handle Edit - Navigates to Edit Screen
+  const handleEdit = (memberId) => {
+    rowRefs.current.get(memberId)?.closeRow();
+    openRowRef.current = null;
+    router.push({ pathname: "/editFamilyMember", params: { memberId } });
+  };
+
+  // ✅ Swipe actions - Side-by-side Edit & Delete buttons
   const renderHiddenItem = ({ item }) => (
     <View style={styles.rowBack}>
-      <View style={styles.deleteContainer}>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => confirmDelete(item.id)}
-        >
-          <MaterialCommunityIcons name="delete" size={22} color="white" />
-          <Text style={styles.swipeText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={[styles.actionButton, styles.editButton]}
+        onPress={() => {
+          router.push({ pathname: "/editFamilyMember", params: { memberId: item.id, householdid: item.householdid } });
+        }}
+      >
+        <MaterialCommunityIcons name="pencil" size={20} color="white" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.actionButton, styles.deleteButton]}
+        onPress={() => confirmDelete(item.id)}
+      >
+        <MaterialCommunityIcons name="delete" size={20} color="white" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -124,46 +137,47 @@ const FamilyMembersListScreen = () => {
           keyExtractor={(item) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
-            <Card style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardContent}
-                onPress={() => router.push({ pathname: "/editFamilyMember", params: { memberId: item.id } })}
-              >
-                <MaterialCommunityIcons name="account-circle" size={40} color="#1662C6" />
-                <View style={styles.textContainer}>
-                  <Text style={styles.name}>
-                    {item.firstname || ""} {item.lastname || ""}
-                  </Text>
-                  <Text style={styles.relationship}>
-                    {item.relationship ? item.relationship : "No Relationship Info"}
-                  </Text>
-                </View>
-                <MaterialCommunityIcons name="chevron-right" size={24} color="#888" />
-              </TouchableOpacity>
-            </Card>
+            <View style={styles.cardContainer}>
+              <Card style={styles.card}>
+                <TouchableOpacity
+                  style={styles.cardContent}
+                  onPress={() => router.push({ pathname: "/viewFamilyMember", params: { memberId: item.id } })}
+                >
+                  <MaterialCommunityIcons name="account-circle" size={40} color="#1662C6" />
+                  <View style={styles.textContainer}>
+                    <Text style={styles.name}>
+                      {item.firstname || ""} {item.lastname || ""}
+                    </Text>
+                    <Text style={styles.relationship}>
+                      {item.relationship ? item.relationship : "No Relationship Info"}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={24} color="#888" />
+                </TouchableOpacity>
+              </Card>
+            </View>
           )}
           renderHiddenItem={renderHiddenItem}
           leftOpenValue={0}
-          rightOpenValue={-90} // ✅ Moved delete button further right
+          rightOpenValue={-100} // ✅ Adjusted for compact buttons
           disableRightSwipe={true}
         />
       )}
 
-<FAB
-  style={styles.fab}
-  icon="plus"
-  label="Add Member"
-  onPress={() => {
-    console.log("🟢 Navigating to AddMember with Household ID:", householdid);
-    router.push({ pathname: "/addMember", params: { householdId: householdid } }); // ✅ Ensure parameter name matches
-  }}
-/>
-
+      <FAB
+        style={styles.fab}
+        icon="plus"
+        label="Add Member"
+        onPress={() => {
+          console.log("🟢 Navigating to AddMember with Household ID:", householdid);
+          router.push({ pathname: "/addMember", params: { householdId: householdid } });
+        }}
+      />
     </View>
   );
 };
 
-// ✅ Updated UI Styles
+// ✅ Styled for Modern Look
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -187,10 +201,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
   },
+  cardContainer: {
+    marginBottom: 10,
+  },
   card: {
     backgroundColor: "white",
     borderRadius: 10,
-    marginBottom: 10,
     padding: 10,
     elevation: 4,
   },
@@ -213,37 +229,33 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   rowBack: {
-    flex: 1,
+    flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",
-    marginBottom: 10,
-    paddingRight: 15,
+    height: "100%",
+    borderRadius: 10,
+    paddingRight: 10,
   },
-  deleteContainer: {
-    alignItems: "flex-end", // ✅ Moves delete button to the right
+  actionButton: {
+    width: 40,
+    height: 40,
     justifyContent: "center",
-    width: "100%",
+    alignItems: "center",
+    borderRadius: 20,
+    marginHorizontal: 5,
+    elevation: 3,
+  },
+  editButton: {
+    backgroundColor: "#2D9CDB",
   },
   deleteButton: {
-    backgroundColor: "#e74c3c",
-    width: 80,
-    height: 45,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  swipeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-    textAlign: "center",
+    backgroundColor: "#EB5757",
   },
   fab: {
     position: "absolute",
     right: 20,
     bottom: 30,
     backgroundColor: "#1662C6",
-    paddingHorizontal: 10,
   },
 });
 

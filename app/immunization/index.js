@@ -65,7 +65,7 @@ const ImmunizationScreen = () => {
           text: "OK",
           onPress: () => {
             router.push({
-              pathname: "/familymemberslist",
+              pathname: "/dashboard",
               params: { householdid: parsedHouseholdId },
             });
           },

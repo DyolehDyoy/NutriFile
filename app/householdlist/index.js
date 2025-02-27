@@ -155,7 +155,7 @@ const HouseholdListScreen = () => {
       <FAB
         style={styles.fab}
         icon="plus"
-        onPress={() => router.push("/addHousehold")}
+        onPress={() => router.push("/newHouseholdForm")}
       />
     </View>
   );

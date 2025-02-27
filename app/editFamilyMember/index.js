@@ -1,3 +1,4 @@
+import { updateMemberData } from "../database";  // ✅ Import update function
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -102,40 +103,50 @@ const EditFamilyMemberScreen = () => {
     }
   }, [memberId]);
 
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === "ios");
-    if (selectedDate) {
-      const now = new Date();
-      let calculatedAge = now.getFullYear() - selectedDate.getFullYear();
-      const m = now.getMonth() - selectedDate.getMonth();
-      if (m < 0 || (m === 0 && now.getDate() < selectedDate.getDate())) {
-        calculatedAge--;
-      }
-
-      let autoClassification = "";
-      const diffDays = (now - selectedDate) / (1000 * 3600 * 24);
-      if (diffDays <= 60) {
-        autoClassification = "Newborn (0-60 days)";
-      } else if (diffDays <= 335) {
-        autoClassification = "Infant (61 days-11months)";
-      } else if (calculatedAge < 5) {
-        autoClassification = "Under 5 (1-4 years old)";
-      } else if (calculatedAge < 10) {
-        autoClassification = "School Aged Children (5-9 years old)";
-      } else if (calculatedAge < 60) {
-        autoClassification = "Adult (18-59 years old)";
-      } else {
-        autoClassification = "Senior Citizen (60+ years old)";
-      }
-
-      setMember({
-        ...member,
-        dateofbirth: selectedDate,
-        age: calculatedAge.toString(),
-        classification: autoClassification,
-      });
+  const handleUpdate = async () => {
+    if (!member.firstname || !member.lastname || !member.relationship) {
+      Alert.alert("Error", "All fields are required.");
+      return;
+    }
+  
+    try {
+      // ✅ Prepare updated data
+      const updatedMemberData = {
+        firstname: member.firstname,
+        lastname: member.lastname,
+        relationship: member.relationship,
+        sex: member.sex,
+        dateofbirth: member.dateofbirth ? format(member.dateofbirth, "yyyy-MM-dd") : null,
+        age: member.age,
+        classification: member.classification,
+        healthrisk: member.healthrisk.join(", "),
+        weight: member.weight ? parseFloat(member.weight) : null,
+        height: member.height ? parseFloat(member.height) : null,
+        educationallevel: member.educationLevel,
+      };
+  
+      console.log("🔍 Updating Member Data:", updatedMemberData);
+  
+      // ✅ Call update function (SQLite & Supabase)
+      const result = await updateMemberData(memberId, updatedMemberData);
+      if (!result.success) throw new Error(result.message);
+  
+      Alert.alert("Success", "Member details updated successfully!", [
+        {
+          text: "OK",
+          onPress: () =>
+            router.replace({
+              pathname: "/familymemberslist",
+              params: { householdid: member.householdid }, // ✅ Navigate back with updated data
+            }),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert("Error", error.message);
     }
   };
+  
+  
 
   return (
     <ScrollView style={styles.container}>
@@ -180,9 +191,10 @@ const EditFamilyMemberScreen = () => {
         value={member.educationLevel}
       />
 
-      <Button mode="contained" style={styles.button} onPress={() => updateMemberData()}>
-        Update Member
-      </Button>
+<Button mode="contained" style={styles.button} onPress={handleUpdate}>
+  Update Member
+</Button>
+
     </ScrollView>
   );
 };

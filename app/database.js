@@ -58,7 +58,7 @@ export const openDatabase = async () => {
     db = await SQLite.openDatabaseAsync("nutrifile.db");
     console.log("✅ Database opened successfully.");
     // Optionally, uncommment the following line to reset on startup:
-    //await resetLocalDatabase();
+   //await resetLocalDatabase();
   }
   return db;
 };
@@ -111,7 +111,7 @@ export const createTables = async () => {
       relationship TEXT,
       sex TEXT,
       dateofbirth DATE,
-      age, TEXT
+      age TEXT,
       classification TEXT,
       healthrisk TEXT,
       weight FLOAT,
@@ -315,6 +315,50 @@ export const updateMember = async (memberId, data) => {
     return null;
   }
 };
+
+export const updateMemberData = async (memberId, updatedData) => {
+  const database = await openDatabase();
+
+  try {
+    console.log("🛠 Updating member with ID:", memberId);
+    console.log("🔍 Data to update:", updatedData);
+
+    // ✅ 1. Update local SQLite database
+    const fields = Object.keys(updatedData)
+      .filter((key) => updatedData[key] !== undefined) // Ignore undefined fields
+      .map((key) => `${key} = ?`)
+      .join(", ");
+    const values = Object.values(updatedData).filter((value) => value !== undefined); // Remove undefined values
+    values.push(memberId);
+
+    if (fields.length === 0) {
+      console.warn("⚠️ No fields to update.");
+      return { success: false, message: "No fields to update" };
+    }
+
+    const query = `UPDATE addmember SET ${fields} WHERE id = ?;`;
+    await database.runAsync(query, values);
+    console.log("✅ Local database updated successfully!");
+
+    // ✅ 2. Update Supabase database
+    const { error } = await supabase
+      .from("addmember")
+      .update(updatedData)
+      .eq("id", memberId);
+
+    if (error) {
+      console.error("❌ Supabase Update Error:", error.message);
+      return { success: false, message: error.message };
+    }
+
+    console.log("✅ Supabase database updated successfully!");
+    return { success: true };
+  } catch (error) {
+    console.error("❌ Error updating member data:", error);
+    return { success: false, message: error.message };
+  }
+};
+
 
 // Insert Member Health Info – for storing health data in a separate table
 export const insertMemberHealthInfo = async (data) => {
@@ -520,6 +564,15 @@ NetInfo.addEventListener((state) => {
   }
 });
 
+
+const checkTableSchema = async () => {
+  const database = await openDatabase();
+  const schema = await database.getAllAsync(`PRAGMA table_info(addmember);`);
+  console.log("📝 Current SQLite Schema for `addmember` Table:", schema);
+};
+
+checkTableSchema(); // ✅ Run this when app starts
+
 // Export functions
 export default {
   store, // Legend-State Store
@@ -528,7 +581,7 @@ export default {
   insertHousehold,
   insertMealPattern,
   insertMember,
-  updateMember,
+  updateMemberData,  // ✅ Make sure this is included
   insertMemberHealthInfo,
   insertImmunization,
   syncWithSupabase,
