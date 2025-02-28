@@ -15,7 +15,7 @@ import {
   Card,
   Divider,
   Switch,
-  SegmentedButtons,
+  Menu,
 } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { insertMealPattern, syncWithSupabase } from "../database";
@@ -31,7 +31,7 @@ const formState = observable({
   foodBeliefText: "",
   healthConsideration: "",
   whatIfSick: "",
-  checkupFrequency: "Monthly",
+  checkupFrequency: "Monthly", // Default value
   loading: false,
 });
 
@@ -41,6 +41,7 @@ const foodBeliefAnim = new Animated.Value(0);
 const MealPatternScreen = () => {
   const router = useRouter();
   const { householdId } = useLocalSearchParams();
+  const [menuVisible, setMenuVisible] = useState(false);
 
   useEffect(() => {
     if (!householdId) {
@@ -73,7 +74,6 @@ const MealPatternScreen = () => {
   
     return true;
   };
-  
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -156,7 +156,7 @@ const MealPatternScreen = () => {
             {formState.foodBelief.get() && (
               <TextInput
                 mode="outlined"
-                placeholder="Describe any cultural food beliefs..."
+                placeholder="Why do you think this type of food (identify the food) is usually prepared in your home?"
                 value={formState.foodBeliefText.get()}
                 onChangeText={formState.foodBeliefText.set}
                 multiline
@@ -193,16 +193,26 @@ const MealPatternScreen = () => {
           />
 
           <Text style={styles.subHeader}>Health Checkup Frequency</Text>
-          <SegmentedButtons
-            value={formState.checkupFrequency.get()}
-            onValueChange={formState.checkupFrequency.set}
-            buttons={[
-              { value: "Daily", label: "Daily" },
-              { value: "Weekly", label: "Weekly" },
-              { value: "Monthly", label: "Monthly" },
-              { value: "Yearly", label: "Yearly" },
-            ]}
-          />
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
+              <Button mode="outlined" onPress={() => setMenuVisible(true)} style={styles.dropdown}>
+                {formState.checkupFrequency.get()}
+              </Button>
+            }
+          >
+            {["NO Checkup", "Daily", "Weekly", "Monthly", "Yearly"].map((option) => (
+              <Menu.Item
+                key={option}
+                title={option}
+                onPress={() => {
+                  formState.checkupFrequency.set(option);
+                  setMenuVisible(false);
+                }}
+              />
+            ))}
+          </Menu>
         </Card.Content>
       </Card>
 
@@ -219,6 +229,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
   subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
   input: { marginBottom: 12 },
+  dropdown: { marginTop: 10 },
   card: { marginBottom: 16, padding: 10, backgroundColor: "white", borderRadius: 10, elevation: 2 },
   toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 5 },
   divider: { marginVertical: 10 },

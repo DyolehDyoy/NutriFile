@@ -51,17 +51,38 @@ const NewHouseholdForm = () => {
 
   useEffect(() => {
     createTables();
+    resetFormState(); // ✅ Clears previous input when screen is loaded
+
   }, []);
 
+  // ✅ Move resetFormState inside the component
+  const resetFormState = () => {
+    formState.sitio.set("");
+    formState.householdNumber.set("");
+    formState.householdNumberError.set("");
+    formState.dateOfVisit.set(new Date());
+    formState.showDatePicker.set(false);
+    formState.toilet.set("Presence");
+    formState.sourceOfWater.set("Spring");
+    formState.sourceOfIncome.set("Farming");
+    formState.customIncomeSource.set("");
+    formState.showCustomIncomeInput.set(false);
+    formState.foodProduction.set(false);
+    formState.membership4Ps.set(false);
+    formState.loading.set(false);
+  };
+
+  
+
   const handleHouseholdNumberChange = (text) => {
-    formState.householdNumberError.set(/^\d*$/.test(text) ? "" : "Numbers only");
+    
     formState.householdNumber.set(text);
   };
 
   const validateForm = () => {
     const {
       sitio,
-      householdNumber,
+      householdNumber, 
       toilet,
       sourceOfWater,
       sourceOfIncome,
@@ -276,6 +297,7 @@ const styles = StyleSheet.create({
   errorText: { color: "red", fontSize: 14 },
 
   // Updated dropdown styles to make it visible
+  
   dropdownContainer: {
     borderWidth: 1,
     borderColor: "#007AFF", // Blue border
