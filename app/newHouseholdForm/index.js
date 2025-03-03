@@ -33,17 +33,24 @@ const formState = observable({
   dateOfVisit: new Date(),
   showDatePicker: false,
   toilet: "Presence",
+  toiletType: "",
+  showToiletTypeInput: false,
   sourceOfWater: "Spring",
+  customWaterSource: "", // ✅ Custom water source input
+  showCustomWaterSourceInput: false, // ✅ Controls input visibility
   sourceOfIncomeMenuVisible: false,
-  sourceOfIncome: "Farming",
-  customIncomeSource: "",     // New state to hold the "Other" income input
-  showCustomIncomeInput: false, // Boolean to control text input visibility
-  foodProduction: false,
+  sourceOfIncome: "Full Time",
+  customIncomeSource: "",
+  showCustomIncomeInput: false,
+  foodProductionVegetable: false, // ✅ Separate for Vegetable Garden
+  foodProductionAnimals: false, // ✅ Separate for Raised Animals
   membership4Ps: false,
   loading: false,
 });
 
-const incomeOptions = ["Farming", "Fishing", "Business", "Other"];
+
+
+const incomeOptions = ["Full Time", "Part Time", "Self Employed", "Other"];
 
 
 const NewHouseholdForm = () => {
@@ -64,7 +71,7 @@ const NewHouseholdForm = () => {
     formState.showDatePicker.set(false);
     formState.toilet.set("Presence");
     formState.sourceOfWater.set("Spring");
-    formState.sourceOfIncome.set("Farming");
+    formState.sourceOfIncome.set("Full Time");
     formState.customIncomeSource.set("");
     formState.showCustomIncomeInput.set(false);
     formState.foodProduction.set(false);
@@ -82,51 +89,92 @@ const NewHouseholdForm = () => {
   const validateForm = () => {
     const {
       sitio,
-      householdNumber, 
+      householdNumber,
+      dateOfVisit,
       toilet,
       sourceOfWater,
       sourceOfIncome,
-      householdNumberError,
+      foodProductionVegetable,
+      foodProductionAnimals,
+      membership4Ps,
     } = formState.get();
-
-    if (!sitio || !householdNumber || householdNumberError) {
-      Alert.alert("Missing Fields", "Please complete all required fields.");
+  
+    // ✅ Check required fields
+    if (!sitio || !householdNumber || !dateOfVisit || !toilet || !sourceOfWater || !sourceOfIncome) {
+      Alert.alert(
+        "Missing Fields",
+        "Please complete all required fields before proceeding."
+      );
       return false;
     }
+  
+    // ✅ If "Other" is selected for Water Source but no input provided
+    if (sourceOfWater === "Other" && !formState.customWaterSource.get().trim()) {
+      Alert.alert(
+        "Missing Input",
+        "Please specify the 'Other' water source."
+      );
+      return false;
+    }
+  
+    // ✅ If "Other" is selected for Income Source but no input provided
+    if (sourceOfIncome === "Other" && !formState.customIncomeSource.get().trim()) {
+      Alert.alert(
+        "Missing Input",
+        "Please specify the 'Other' source of income."
+      );
+      return false;
+    }
+  
+    // ✅ If "Present" is selected for Toilet but no input provided
+    if (toilet === "Presence" && !formState.toiletType.get().trim()) {
+      Alert.alert(
+        "Missing Input",
+        "Please specify the type of toilet."
+      );
+      return false;
+    }
+  
     return true;
   };
-
+  
   const handleSave = async () => {
-    if (!validateForm()) return;
-
+    if (!validateForm()) return; // ✅ Stop execution if validation fails
+  
     formState.loading.set(true);
-
+  
     const data = {
       sitio: formState.sitio.get(),
       householdnumber: formState.householdNumber.get(),
       dateofvisit: formState.dateOfVisit.get().toISOString().split("T")[0],
-      toilet: formState.toilet.get(),
-      sourceofwater: formState.sourceOfWater.get(),
+      toilet: formState.toilet.get() === "Presence"
+        ? formState.toiletType.get() // ✅ Store toilet type if present
+        : formState.toilet.get(),
+      sourceofwater: formState.sourceOfWater.get() === "Other"
+        ? formState.customWaterSource.get()
+        : formState.sourceOfWater.get(),
       sourceofincome: formState.sourceOfIncome.get() === "Other"
-      ? formState.customIncomeSource.get()  // Save custom income source if "Other" is selected
-      : formState.sourceOfIncome.get(),
-      foodproduction: formState.foodProduction.get() ? "Yes" : "No",
+        ? formState.customIncomeSource.get()
+        : formState.sourceOfIncome.get(),
+      foodproductionvegetable: formState.foodProductionVegetable.get() ? "Yes" : "No",
+      foodproductionanimals: formState.foodProductionAnimals.get() ? "Yes" : "No",
       membership4ps: formState.membership4Ps.get() ? "Yes" : "No",
     };
-
+  
     const householdId = await insertHousehold(data);
     if (!householdId) {
       formState.loading.set(false);
       Alert.alert("Error", "Failed to save household data.");
       return;
     }
-
+  
     await syncWithSupabase();
     Alert.alert("Success", "Household data saved successfully!");
-
+  
     formState.loading.set(false);
     router.push({ pathname: "/mealPattern", params: { householdId } });
   };
+  
 
   return (
     <ScrollView style={styles.container}>
@@ -182,29 +230,58 @@ const NewHouseholdForm = () => {
 
       {/* Toilet & Water Source */}
       <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.subHeader}>Toilet Availability:</Text>
-          <SegmentedButtons
-            value={formState.toilet.get()}
-            onValueChange={formState.toilet.set}
-            buttons={[
-              { value: "Presence", label: "Present" },
-              { value: "Absence", label: "Absent" },
-            ]}
-          />
+  <Card.Content>
+    <Text style={styles.subHeader}>Sanitary Facilities:</Text>
+    <SegmentedButtons
+      value={formState.toilet.get()}
+      onValueChange={(value) => {
+        formState.toilet.set(value);
+        formState.showToiletTypeInput.set(value === "Presence"); // ✅ Show/hide input field
+      }}
+      buttons={[
+        { value: "Presence", label: "Present" },
+        { value: "Absence", label: "Absent" },
+      ]}
+    />
 
-          <Text style={styles.subHeader}>Source of Water:</Text>
-          <SegmentedButtons
-            value={formState.sourceOfWater.get()}
-            onValueChange={formState.sourceOfWater.set}
-            buttons={[
-              { value: "Spring", label: "Spring" },
-              { value: "DCWD", label: "DCWD" },
-              { value: "Tabay", label: "Tabay" },
-            ]}
-          />
-        </Card.Content>
-      </Card>
+    {/* ✅ Input field appears only if "Present" is selected */}
+    {formState.showToiletTypeInput.get() && (
+      <TextInput
+        label="Specify Toilet Type"
+        mode="outlined"
+        value={formState.toiletType.get()}
+        onChangeText={formState.toiletType.set}
+        style={styles.input}
+      />
+    )}
+<Text style={styles.subHeader}>Source of Water:</Text>
+<SegmentedButtons
+  value={formState.sourceOfWater.get()}
+  onValueChange={(value) => {
+    formState.sourceOfWater.set(value);
+    formState.showCustomWaterSourceInput.set(value === "Other"); // ✅ Show input only if "Other" is selected
+  }}
+  buttons={[
+    { value: "Spring", label: "Spring" },
+    { value: "DCWD", label: "DCWD" },
+    { value: "Tabay", label: "Tabay" },
+    { value: "Other", label: "Other" }, // ✅ Added "Other" option
+  ]}
+/>
+
+{/* ✅ Input field appears only if "Other" is selected */}
+{formState.showCustomWaterSourceInput.get() && (
+  <TextInput
+    label="Specify Other Water Source"
+    mode="outlined"
+    value={formState.customWaterSource.get()}
+    onChangeText={formState.customWaterSource.set}
+    style={styles.input}
+  />
+)}
+  </Card.Content>
+</Card>
+
 
       {/* Source of Income & Membership */}
       <Card style={styles.card}>
@@ -261,12 +338,21 @@ const NewHouseholdForm = () => {
           <Divider style={{ marginVertical: 10 }} />
 
           <View style={styles.toggleRow}>
-            <Text style={styles.subHeader}>Food Production (vegetable garden/raised animals for food):</Text>
-            <Switch
-              value={formState.foodProduction.get()}
-              onValueChange={formState.foodProduction.set}
-            />
-          </View>
+  <Text style={styles.subHeader}>Vegetable Garden:</Text>
+  <Switch
+    value={formState.foodProductionVegetable.get()}
+    onValueChange={formState.foodProductionVegetable.set}
+  />
+</View>
+
+<View style={styles.toggleRow}>
+  <Text style={styles.subHeader}>Raised Animals for Food:</Text>
+  <Switch
+    value={formState.foodProductionAnimals.get()}
+    onValueChange={formState.foodProductionAnimals.set}
+  />
+</View>
+
 
           <View style={styles.toggleRow}>
             <Text style={styles.subHeader}>4Ps Membership:</Text>
@@ -280,7 +366,7 @@ const NewHouseholdForm = () => {
 
       {/* Save Button */}
       <Button mode="contained" style={styles.button} onPress={handleSave} disabled={formState.loading.get()}>
-        {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
+      {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
       </Button>
     </ScrollView>
   );

@@ -58,7 +58,7 @@ export const openDatabase = async () => {
     db = await SQLite.openDatabaseAsync("nutrifile.db");
     console.log("✅ Database opened successfully.");
     // Optionally, uncommment the following line to reset on startup:
-   //await resetLocalDatabase();
+    //await resetLocalDatabase();
   }
   return db;
 };
@@ -78,7 +78,8 @@ export const createTables = async () => {
       toilet TEXT,
       sourceofwater TEXT,
       sourceofincome TEXT,
-      foodproduction TEXT,
+      foodproductionvegetable TEXT,
+      foodproductionanimals TEXT,
       membership4ps TEXT,
       synced INTEGER DEFAULT 0
     );
@@ -130,6 +131,7 @@ export const createTables = async () => {
       memberid INTEGER,
       philhealth TEXT,
       familyplanning TEXT,
+      lastmenstrualperiod TEXT, -- ✅ New field for LMP
       smoker TEXT,
       alcoholdrinker TEXT,
       physicalactivity TEXT,
@@ -168,23 +170,30 @@ export const createTables = async () => {
 // Insert Household
 export const insertHousehold = async (data) => {
   const database = await openDatabase();
+
   if (!data.householdnumber || data.householdnumber.trim() === "") {
     console.error("❌ Cannot insert household: householdnumber is missing or empty.");
     return null;
   }
+
   console.log("🔎 Checking if householdnumber already exists...");
-  const existingHousehold = await database.getFirstAsync(`
-    SELECT id FROM household WHERE householdnumber = ? LIMIT 1;
-  `, [data.householdnumber]);
+  const existingHousehold = await database.getFirstAsync(
+    `SELECT id FROM household WHERE householdnumber = ? LIMIT 1;`,
+    [data.householdnumber]
+  );
+
   if (existingHousehold) {
     console.warn(`⚠️ Household with householdnumber ${data.householdnumber} already exists!`);
     return existingHousehold.id;
   }
+
   console.log("📌 Inserting new household...");
   try {
     await database.runAsync(
-      `INSERT INTO household (sitio, householdnumber, dateofvisit, toilet, sourceofwater, sourceofincome, foodproduction, membership4ps, synced)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO household (
+        sitio, householdnumber, dateofvisit, toilet, sourceofwater, 
+        sourceofincome, foodproductionvegetable, foodproductionanimals, membership4ps, synced
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, // ✅ 10 columns, 10 values
       [
         data.sitio,
         data.householdnumber,
@@ -192,11 +201,13 @@ export const insertHousehold = async (data) => {
         data.toilet,
         data.sourceofwater,
         data.sourceofincome,
-        data.foodproduction,
+        data.foodproductionvegetable, // ✅ New column
+        data.foodproductionanimals, // ✅ New column
         data.membership4ps,
-        0
+        0 // ✅ synced field
       ]
     );
+
     const result = await database.getFirstAsync(`SELECT last_insert_rowid() AS id;`);
     const householdId = result.id;
     console.log("✅ Household data saved, ID:", householdId);
@@ -206,6 +217,7 @@ export const insertHousehold = async (data) => {
     return null;
   }
 };
+
 
 // Insert Meal Pattern
 export const insertMealPattern = async (householdid, data) => {
@@ -371,13 +383,14 @@ export const insertMemberHealthInfo = async (data) => {
   console.log("📌 Inserting new member health info...");
   try {
     await database.runAsync(
-      `INSERT INTO memberhealthinfo (householdid, memberid, philhealth, familyplanning, smoker, alcoholdrinker, physicalactivity, morbidity, synced)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO memberhealthinfo (householdid, memberid, philhealth, familyplanning, lastmenstrualperiod, smoker, alcoholdrinker, physicalactivity, morbidity, synced)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,  // ✅ Ensure 10 values are inserted
       [
         data.householdid,
         data.memberid,
         data.philhealth || "No",
         data.familyplanning || "No",
+        data.lastmenstrualperiod || null,  // ✅ Ensure LMP is included
         data.smoker || "No",
         data.alcoholdrinker || "No",
         data.physicalactivity || "No",
@@ -393,6 +406,7 @@ export const insertMemberHealthInfo = async (data) => {
     return null;
   }
 };
+
 
 // Insert Immunization Data
 export const insertImmunization = async (data) => {
@@ -433,21 +447,38 @@ export const syncWithSupabase = async () => {
   const database = await openDatabase();
   try {
     console.log("🔎 Checking for unsynced households...");
-    const unsyncedHouseholds = await database.getAllAsync("SELECT * FROM household WHERE synced = 0");
-    for (const household of unsyncedHouseholds) {
-      console.log(`🚀 Syncing household: ${household.id}`);
-      const { data, error } = await supabase
-        .from("household")
-        .insert([household])
-        .select("id")
-        .single();
-      if (!error && data) {
-        console.log(`✅ Household ${household.id} synced with Supabase ID: ${data.id}`);
-        await database.runAsync(`UPDATE household SET id = ?, synced = 1 WHERE id = ?`, [data.id, household.id]);
-      } else {
-        console.error("❌ Error inserting household:", error ? error.message : "Unknown error");
+const unsyncedHouseholds = await database.getAllAsync("SELECT * FROM household WHERE synced = 0");
+
+for (const household of unsyncedHouseholds) {
+  console.log(`🚀 Syncing household: ${household.id}`);
+
+  const { data, error } = await supabase
+    .from("household")
+    .insert([
+      {
+        id: household.id,
+        sitio: household.sitio,
+        householdnumber: household.householdnumber,
+        dateofvisit: household.dateofvisit,
+        toilet: household.toilet,
+        sourceofwater: household.sourceofwater,
+        sourceofincome: household.sourceofincome,
+        foodproductionvegetable: household.foodproductionvegetable, // ✅ New column
+        foodproductionanimals: household.foodproductionanimals, // ✅ New column
+        membership4ps: household.membership4ps,
       }
-    }
+    ])
+    .select("id")
+    .single();
+
+  if (!error && data) {
+    console.log(`✅ Household ${household.id} synced with Supabase ID: ${data.id}`);
+    await database.runAsync(`UPDATE household SET id = ?, synced = 1 WHERE id = ?`, [data.id, household.id]);
+  } else {
+    console.error("❌ Error inserting household:", error ? error.message : "Unknown error");
+  }
+}
+
 
     console.log("🔎 Checking for unsynced members...");
     const unsyncedMembers = await database.getAllAsync("SELECT * FROM addmember WHERE synced = 0");

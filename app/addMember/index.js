@@ -297,6 +297,7 @@ const AddMemberScreen = () => {
           { label: "Senior High School Graduate", value: "Senior High School Graduate" },
           { label: "College Level", value: "College Level" },
           { label: "College Graduate", value: "College Graduate" },
+          { label: "Post Graduate", value: "Post Graduate" },
         ]}
         style={styles.pickerSelectStyles}
       />

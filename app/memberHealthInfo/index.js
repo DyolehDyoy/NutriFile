@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, ScrollView, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Platform } from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, Divider } from "react-native-paper";
 import database from "../database"; // Import the default export
+import DateTimePicker from "@react-native-community/datetimepicker";
+
+
 
 const MemberHealthInfoScreen = () => {
   const router = useRouter();
@@ -18,6 +21,8 @@ const MemberHealthInfoScreen = () => {
   // States for health info
   const [philHealth, setPhilHealth] = useState("");
   const [familyPlanning, setFamilyPlanning] = useState("");
+  const [lastMenstrualPeriod, setLastMenstrualPeriod] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [smoker, setSmoker] = useState("");
   const [alcoholDrinker, setAlcoholDrinker] = useState("");
 
@@ -37,51 +42,51 @@ const MemberHealthInfoScreen = () => {
         Alert.alert("Error", "Missing member ID. Please try again.");
         return;
       }
-
+  
       setLoading(true);
-
+  
       // If the user typed something in the text field, override the radio choice
       let finalPhysicalActivity = physicalActivity.trim();
       if (specificPhysicalActivity.trim()) {
         finalPhysicalActivity = specificPhysicalActivity.trim();
       }
-
+  
       let finalMorbidity = morbidity.trim();
       if (specify.trim()) {
         finalMorbidity = specify.trim();
       }
-
+  
       // Build the object to insert into memberhealthinfo (including householdid)
       const healthData = {
         memberid: parsedMemberId,
         philhealth: philHealth,
         familyplanning: familyPlanning,
+        lastmenstrualperiod: familyPlanning === "Yes" ? lastMenstrualPeriod || null : null,  // ✅ Ensure LMP is stored correctly
         smoker: smoker,
         alcoholdrinker: alcoholDrinker,
         physicalactivity: finalPhysicalActivity,
         morbidity: finalMorbidity,
         householdid: parsedHouseholdId,
       };
-
+      
+  
       console.log("📌 HealthData object created:", healthData);
-
-      // Insert a new row into the memberhealthinfo table
+  
+      // Insert into memberhealthinfo table
       const healthInfoId = await database.insertMemberHealthInfo(healthData);
       console.log("✅ insertMemberHealthInfo returned:", healthInfoId);
-
+  
       if (healthInfoId) {
-        // Force an immediate sync to push data to Supabase
         await database.syncWithSupabase();
         Alert.alert("Success", "Health information saved successfully!");
-        // Navigate to immunization screen passing both memberId and householdId
-        router.push({ 
-          pathname: "/immunization", 
-          params: { memberId: parsedMemberId, householdId: parsedHouseholdId } 
+        router.push({
+          pathname: "/immunization",
+          params: { memberId: parsedMemberId, householdId: parsedHouseholdId },
         });
       } else {
         Alert.alert("Error", "Failed to save health info.");
       }
-
+  
       setLoading(false);
     } catch (err) {
       console.error("❌ Error inside handleNext:", err);
@@ -89,6 +94,7 @@ const MemberHealthInfoScreen = () => {
       setLoading(false);
     }
   };
+  
 
   return (
     <ScrollView style={styles.container}>
@@ -108,40 +114,56 @@ const MemberHealthInfoScreen = () => {
       </Card>
 
       {/* Family Planning */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.subHeader}>Family Planning (For reproductive age only)</Text>
-          <RadioButton.Group onValueChange={setFamilyPlanning} value={familyPlanning}>
-            <View style={styles.radioContainer}>
-              <RadioButton.Item label="Yes" value="Yes" />
-              <RadioButton.Item label="No" value="No" />
-            </View>
-          </RadioButton.Group>
-        </Card.Content>
-      </Card>
+<Card style={styles.card}>
+  <Card.Content>
+    <Text style={styles.subHeader}>Family Planning (For reproductive age only)</Text>
+    <RadioButton.Group onValueChange={setFamilyPlanning} value={familyPlanning}>
+      <View style={styles.radioContainer}>
+        <RadioButton.Item label="Yes" value="Yes" />
+        <RadioButton.Item label="No" value="No" />
+      </View>
+    </RadioButton.Group>
 
-      {/* Lifestyle: Smoking & Alcohol Consumption */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.subHeader}>Smoker</Text>
-          <RadioButton.Group onValueChange={setSmoker} value={smoker}>
-            <View style={styles.radioContainer}>
-              <RadioButton.Item label="Yes" value="Yes" />
-              <RadioButton.Item label="No" value="No" />
-            </View>
-          </RadioButton.Group>
+    {/* Last Menstrual Period (Only show if family planning is Yes) */}
+{familyPlanning === "Yes" && (
+  <>
+    <Divider style={styles.divider} />
+    <Text style={styles.subHeader}>Last Menstrual Period</Text>
 
-          <Divider style={styles.divider} />
+    <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+  <TextInput
+    mode="outlined"
+    label="Select Date"
+    value={lastMenstrualPeriod ? new Date(lastMenstrualPeriod).toDateString() : ""}
+    editable={false} // Prevents manual typing
+    style={styles.input}
+    left={<TextInput.Icon icon="calendar" />}
+  />
+</TouchableOpacity>
 
-          <Text style={styles.subHeader}>Alcohol drinker</Text>
-          <RadioButton.Group onValueChange={setAlcoholDrinker} value={alcoholDrinker}>
-            <View style={styles.radioContainer}>
-              <RadioButton.Item label="Yes" value="Yes" />
-              <RadioButton.Item label="No" value="No" />
-            </View>
-          </RadioButton.Group>
-        </Card.Content>
-      </Card>
+
+    {showDatePicker && (
+     <DateTimePicker
+     value={lastMenstrualPeriod ? new Date(lastMenstrualPeriod) : new Date()}
+     mode="date"
+     display={Platform.OS === "ios" ? "spinner" : "default"}
+     onChange={(event, selectedDate) => {
+       setShowDatePicker(false);
+       if (selectedDate) {
+         const formattedDate = selectedDate.toISOString().split("T")[0]; // ✅ YYYY-MM-DD format
+         console.log("📌 Selected LMP Date:", formattedDate); // ✅ Debug log
+         setLastMenstrualPeriod(formattedDate); // ✅ Correctly set the selected date
+       }
+     }}
+   />
+   
+    )}
+  </>
+)}
+
+  </Card.Content>
+</Card>
+
 
       {/* Physical Activity */}
       <Card style={styles.card}>
