@@ -58,7 +58,7 @@ export const openDatabase = async () => {
     db = await SQLite.openDatabaseAsync("nutrifile.db");
     console.log("✅ Database opened successfully.");
     // Optionally, uncommment the following line to reset on startup:
-    //await resetLocalDatabase();
+    await resetLocalDatabase();
   }
   return db;
 };
@@ -72,6 +72,8 @@ export const createTables = async () => {
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS household (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      district TEXT,  -- ✅ Added District
+      barangay TEXT,  -- ✅ Added Barangay
       sitio TEXT,
       householdnumber TEXT NOT NULL,
       dateofvisit TEXT,
@@ -191,10 +193,12 @@ export const insertHousehold = async (data) => {
   try {
     await database.runAsync(
       `INSERT INTO household (
-        sitio, householdnumber, dateofvisit, toilet, sourceofwater, 
+        district, barangay, sitio, householdnumber, dateofvisit, toilet, sourceofwater, 
         sourceofincome, foodproductionvegetable, foodproductionanimals, membership4ps, synced
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, // ✅ 10 columns, 10 values
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, // ✅ 10 columns, 10 values
       [
+        data.district,  // ✅ Added District
+        data.barangay,  // ✅ Added Barangay
         data.sitio,
         data.householdnumber,
         data.dateofvisit,
@@ -456,6 +460,8 @@ for (const household of unsyncedHouseholds) {
     .from("household")
     .insert([
       {
+        district: household.district,  // ✅ Include District
+        barangay: household.barangay,  // ✅ Include Barangay
         id: household.id,
         sitio: household.sitio,
         householdnumber: household.householdnumber,

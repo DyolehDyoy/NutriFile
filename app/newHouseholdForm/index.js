@@ -119,9 +119,13 @@ const NewHouseholdForm = () => {
 
   useEffect(() => {
     createTables();
-    resetFormState(); // ✅ Clears previous input when screen is loaded
-
-  }, []);
+    
+    // ✅ Reset form state if navigated from the "+" button
+    if (router.query?.reset) {
+      resetFormState();
+    }
+  }, [router.query]);
+  
 
   
   
@@ -170,6 +174,9 @@ const handleBarangaySearch = (query) => {
 
   // ✅ Move resetFormState inside the component
   const resetFormState = () => {
+    formState.selectedDistrict.set("");  // ✅ Clear selected District
+    formState.selectedBarangay.set("");  // ✅ Clear selected Barangay
+    formState.filteredBarangays.set([]); // ✅ Clear Barangay list
     formState.sitio.set("");
     formState.householdNumber.set("");
     formState.householdNumberError.set("");
@@ -180,10 +187,12 @@ const handleBarangaySearch = (query) => {
     formState.sourceOfIncome.set("Full Time");
     formState.customIncomeSource.set("");
     formState.showCustomIncomeInput.set(false);
-    formState.foodProduction.set(false);
+    formState.foodProductionVegetable.set(false);
+    formState.foodProductionAnimals.set(false);
     formState.membership4Ps.set(false);
     formState.loading.set(false);
   };
+  
 
   
 
@@ -250,6 +259,8 @@ const handleBarangaySearch = (query) => {
     formState.loading.set(true);
   
     const data = {
+      district: formState.selectedDistrict.get(),  // ✅ Save District
+      barangay: formState.selectedBarangay.get(),  // ✅ Save Barangay
       sitio: formState.sitio.get(),
       householdnumber: formState.householdNumber.get(),
       dateofvisit: formState.dateOfVisit.get().toISOString().split("T")[0],

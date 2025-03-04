@@ -152,11 +152,17 @@ const HouseholdListScreen = () => {
         />
       )}
 
-      <FAB
-        style={styles.fab}
-        icon="plus"
-        onPress={() => router.push("/newHouseholdForm")}
-      />
+<FAB
+  style={styles.fab}
+  icon="plus"
+  onPress={() => {
+    router.push({
+      pathname: "/newHouseholdForm",
+      params: { reset: true }, // ✅ Send reset signal when adding new household
+    });
+  }}
+/>
+
     </View>
   );
 };
