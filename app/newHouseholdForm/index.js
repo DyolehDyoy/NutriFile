@@ -26,7 +26,68 @@ import { observable } from "@legendapp/state";
 import { observer } from "@legendapp/state/react";
 import { insertHousehold, syncWithSupabase, createTables } from "../database";
 
+const barangaysByDistrict = {
+  Poblacion: [
+    "1-A", "2-A", "3-A", "4-A", "5-A", "6-A", "7-A", "8-A", "9-A", "10-A",
+    "11-B", "12-B", "13-B", "14-B", "15-B", "16-B", "17-B", "18-B", "19-B", "20-B",
+    "21-C", "22-C", "23-C", "24-C", "25-C", "26-C", "27-C", "28-C", "29-C", "30-C",
+    "31-D", "32-D", "33-D", "34-D", "35-D", "36-D", "37-D", "38-D", "39-D", "40-D"
+  ],
+  Talomo: [
+    "Bago Aplaya", "Bago Gallera", "Baliok", "Bucana", "Catalunan Grande",
+    "Catalunan Pequeño", "Dumoy", "Langub", "Ma-a", "Magtuod", "Matina Aplaya",
+    "Matina Crossing", "Matina Pangi", "Talomo Proper"
+  ],
+  Agdao: [
+    "Agdao Proper", "Centro (San Juan)", "Gov. Paciano Bangoy", "Gov. Vicente Duterte",
+    "Kap. Tomas Monteverde, Sr.", "Lapu-Lapu", "Leon Garcia", "Rafael Castillo",
+    "San Antonio", "Ubalde", "Wilfredo Aquino"
+  ],
+  Buhangin: [
+    "Acacia", "Alfonso Angliongto Sr.", "Buhangin Proper", "Cabantian", "Callawa",
+    "Communal", "Indangan", "Mandug", "Pampanga", "Sasa", "Tigatto", "Vicente Hizon Sr.", "Waan"
+  ],
+  Bunawan: [
+    "Alejandra Navarro (Lasang)", "Bunawan Proper", "Gatungan", "Ilang", "Mahayag",
+    "Mudiang", "Panacan", "San Isidro (Licanan)", "Tibungco"
+  ],
+  Paquibato: [
+    "Colosas", "Fatima (Benowang)", "Lumiad", "Mabuhay", "Malabog", "Mapula", "Panalum",
+    "Pandaitan", "Paquibato Proper", "Paradise Embak", "Salapawan", "Sumimao", "Tapak"
+  ],
+  Baguio: [
+    "Baguio Proper", "Cadalian", "Carmen", "Gumalang", "Malagos", "Tambobong",
+    "Tawan-Tawan", "Wines"
+  ],
+  Calinan: [
+    "Biao Joaquin", "Calinan Proper", "Cawayan", "Dacudao", "Dalagdag", "Dominga",
+    "Inayangan", "Lacson", "Lamanan", "Lampianao", "Megkawayan", "Pangyan", "Riverside",
+    "Saloy", "Sirib", "Subasta", "Talomo River", "Tamayong", "Wangan"
+  ],
+  Marilog: [
+    "Baganihan", "Bantol", "Buda", "Dalag", "Datu Salumay", "Gumitan",
+    "Magsaysay", "Malamba", "Marilog Proper", "Salaysay", "Suawan (Tuli)", "Tamugan"
+  ],
+  Toril: [
+    "Alambre", "Atan-Awe", "Bangkas Heights", "Baracatan", "Bato", "Bayabas",
+    "Binugao", "Camansi", "Catigan", "Crossing Bayabas", "Daliao", "Daliaon Plantation",
+    "Eden", "Kilate", "Lizada", "Lubogan", "Marapangi", "Mulig", "Sibulan", "Sirawan",
+    "Tagluno", "Tagurano", "Tibuloy", "Toril Proper", "Tungkalan"
+  ],
+  Tugbok: [
+    "Angalan", "Bago Oshiro", "Balenggaeng", "Biao Escuela", "Biao Guinga", "Los Amigos",
+    "Manambulan", "Manuel Guianga", "Matina Biao", "Mintal", "New Carmen", "New Valencia",
+    "Santo Niño", "Tacunan", "Tagakpan", "Talandang", "Tugbok Proper", "Ula"
+  ]
+};
+
+
 const formState = observable({
+  selectedDistrict: "",  // ✅ Store the selected Administrative District
+  selectedBarangay: "",  // ✅ Store the selected Barangay
+  filteredBarangays: [], // ✅ Store the list of barangays under the selected district
+  showDistrictDropdown: false, // ✅ Controls district dropdown visibility
+  showBarangayDropdown: false, // ✅ Controls barangay dropdown visibility
   sitio: "",
   householdNumber: "",
   householdNumberError: "",
@@ -61,6 +122,51 @@ const NewHouseholdForm = () => {
     resetFormState(); // ✅ Clears previous input when screen is loaded
 
   }, []);
+
+  
+  
+
+
+ // ✅ Updates barangay list when district is selected
+ const updateBarangays = (district) => {
+  formState.selectedDistrict.set(district);
+  formState.selectedBarangay.set(""); // ✅ Clear barangay field
+  formState.filteredBarangays.set([]); // ✅ Ensure no barangays are displayed
+  formState.showDistrictDropdown.set(false); // ✅ Close dropdown after selection
+};
+
+
+// ✅ Handles barangay search (prevents invalid entries)
+// ✅ Handles barangay search (prevents invalid entries but does not clear immediately)
+const handleBarangaySearch = (query) => {
+  formState.selectedBarangay.set(query); // ✅ Update input field
+
+  const district = formState.selectedDistrict.get();
+  if (!district) return; // ✅ Ensure a district is selected before searching
+
+  const barangayList = barangaysByDistrict[district] || [];
+
+  // ✅ If the search bar is empty, do not show any results
+  if (query.trim() === "") {
+    formState.filteredBarangays.set([]);
+    return;
+  }
+
+  // ✅ Filter barangays based on search query
+  const filtered = barangayList.filter((barangay) =>
+    barangay.toLowerCase().includes(query.toLowerCase())
+  );
+
+  formState.filteredBarangays.set(filtered); // ✅ Show filtered list
+};
+
+
+
+
+
+
+
+
 
   // ✅ Move resetFormState inside the component
   const resetFormState = () => {
@@ -179,6 +285,74 @@ const NewHouseholdForm = () => {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.header}>Household Information</Text>
+
+      
+
+     {/* Administrative District Selection */}
+<Card style={styles.card}>
+  <Card.Content>
+    <Text style={styles.subHeader}>Administrative District</Text>
+    <Menu
+      visible={formState.showDistrictDropdown.get()}
+      onDismiss={() => formState.showDistrictDropdown.set(false)}
+      anchor={
+        <TouchableOpacity
+          style={styles.dropdownButton}
+          onPress={() => formState.showDistrictDropdown.set(true)}
+        >
+          <Text>{formState.selectedDistrict.get() || "Select District"}</Text>
+          <Icon name="keyboard-arrow-down" size={20} style={styles.dropdownIcon} />
+        </TouchableOpacity>
+      }
+    >
+      {Object.keys(barangaysByDistrict).map((district, index) => (
+        <Menu.Item
+          key={index}
+          title={district}
+          onPress={() => updateBarangays(district)}
+        />
+      ))}
+    </Menu>
+  </Card.Content>
+</Card>
+
+
+{/* Barangay Search Input */}
+<Card style={styles.card}>
+  <Card.Content>
+    <TextInput
+      label="Search Barangay"
+      mode="outlined"
+      value={formState.selectedBarangay.get()}
+      onChangeText={handleBarangaySearch}
+      style={styles.input}
+      disabled={!formState.selectedDistrict.get()} // ✅ Prevent input before district selection
+    />
+
+    {/* ✅ Only show the list when there are search results */}
+    {formState.filteredBarangays.get().length > 0 && (
+      <View style={styles.dropdownContainer}>
+        {formState.filteredBarangays.get().map((barangay, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.dropdownItem}
+            onPress={() => {
+              formState.selectedBarangay.set(barangay);
+              formState.filteredBarangays.set([]); // ✅ Hide list after selection
+            }}
+          >
+            <Text>{barangay}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    )}
+  </Card.Content>
+</Card>
+
+
+
+
+
 
       {/* Basic Information Card */}
       <Card style={styles.card}>
