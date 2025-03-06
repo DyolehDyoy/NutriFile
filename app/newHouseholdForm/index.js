@@ -114,17 +114,18 @@ const formState = observable({
 const incomeOptions = ["Full Time", "Part Time", "Self Employed", "Other"];
 
 
+import { useLocalSearchParams } from "expo-router";
+
 const NewHouseholdForm = () => {
   const router = useRouter();
+  const params = useLocalSearchParams(); // ✅ Get route parameters
 
   useEffect(() => {
-    createTables();
-    
-    // ✅ Reset form state if navigated from the "+" button
-    if (router.query?.reset) {
-      resetFormState();
+    if (params?.reset) {
+      resetFormState(); // ✅ Reset the form state when the screen is opened
     }
-  }, [router.query]);
+  }, [params]);
+
   
 
   
@@ -174,16 +175,22 @@ const handleBarangaySearch = (query) => {
 
   // ✅ Move resetFormState inside the component
   const resetFormState = () => {
-    formState.selectedDistrict.set("");  // ✅ Clear selected District
-    formState.selectedBarangay.set("");  // ✅ Clear selected Barangay
-    formState.filteredBarangays.set([]); // ✅ Clear Barangay list
+    formState.selectedDistrict.set("");
+    formState.selectedBarangay.set("");
+    formState.filteredBarangays.set([]);
+    formState.showDistrictDropdown.set(false);
+    formState.showBarangayDropdown.set(false);
     formState.sitio.set("");
     formState.householdNumber.set("");
     formState.householdNumberError.set("");
     formState.dateOfVisit.set(new Date());
     formState.showDatePicker.set(false);
     formState.toilet.set("Presence");
+    formState.toiletType.set("");
+    formState.showToiletTypeInput.set(false);
     formState.sourceOfWater.set("Spring");
+    formState.customWaterSource.set("");
+    formState.showCustomWaterSourceInput.set(false);
     formState.sourceOfIncome.set("Full Time");
     formState.customIncomeSource.set("");
     formState.showCustomIncomeInput.set(false);
@@ -192,6 +199,8 @@ const handleBarangaySearch = (query) => {
     formState.membership4Ps.set(false);
     formState.loading.set(false);
   };
+  
+
   
 
   

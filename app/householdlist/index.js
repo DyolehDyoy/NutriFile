@@ -158,7 +158,6 @@ const HouseholdListScreen = () => {
   onPress={() => {
     router.push({
       pathname: "/newHouseholdForm",
-      params: { reset: true }, // ✅ Send reset signal when adding new household
     });
   }}
 />
