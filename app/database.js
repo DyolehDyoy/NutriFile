@@ -58,7 +58,7 @@ export const openDatabase = async () => {
     db = await SQLite.openDatabaseAsync("nutrifile.db");
     console.log("✅ Database opened successfully.");
     // Optionally, uncommment the following line to reset on startup:
-   // await resetLocalDatabase();
+   //await resetLocalDatabase();
   }
   return db;
 };

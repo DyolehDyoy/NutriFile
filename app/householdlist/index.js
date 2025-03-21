@@ -83,34 +83,39 @@ const HouseholdListScreen = () => {
   // ✅ Swipe Left: Show "Edit" & "Delete" options for household
   const renderHiddenItem = ({ item }) => (
     <View style={styles.rowBack}>
-      <View style={styles.backButtonsContainer}>
+      <View style={styles.actionButtonsContainer}>
+        {/* ✅ Edit Button */}
         <TouchableOpacity
-          style={[styles.backButton, styles.editButton]}
+          style={[styles.actionButton, styles.editButton]}
           onPress={() => {
-            rowRefs.current.get(item.id)?.closeRow();
-            openRowRef.current = null;
             router.push({ pathname: "/editHousehold", params: { id: item.id } });
           }}
         >
-          <MaterialCommunityIcons name="pencil" size={24} color="white" />
-          <Text style={styles.swipeText}>Edit</Text>
+          <MaterialCommunityIcons name="pencil" size={18} color="white" />
         </TouchableOpacity>
-
+  
+        {/* ✅ Reduce space between buttons */}
+        <View style={{ width: 5 }} /> 
+  
+        {/* ✅ Delete Button */}
         <TouchableOpacity
-          style={[styles.backButton, styles.deleteButton]}
+          style={[styles.actionButton, styles.deleteButton]}
           onPress={() => handleDelete(item.id)}
         >
-          <MaterialCommunityIcons name="delete" size={24} color="white" />
-          <Text style={styles.swipeText}>Delete</Text>
+          <MaterialCommunityIcons name="delete" size={18} color="white" />
         </TouchableOpacity>
       </View>
     </View>
   );
-
+  
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Households</Text>
-
+      <View style={styles.headerContainer}>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <MaterialCommunityIcons name="arrow-left" size={24} color="#205C3B" />
+  </TouchableOpacity>
+  <Text style={styles.header}>Households</Text>
+</View>
       {loading ? (
         <ActivityIndicator size="large" color="#205C3B" />
       ) : households.length === 0 ? (
@@ -167,6 +172,7 @@ const HouseholdListScreen = () => {
 };
 
 // ✅ Styles for UI Components
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -213,49 +219,62 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rowBack: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "transparent",
-    flex: 1,
-    flexDirection: "row",
     justifyContent: "flex-end",
-    paddingLeft: 15,
-    marginBottom: 10,
+    height: "100%",
+    backgroundColor: "transparent",
+    borderRadius: 10,
+    paddingRight: 10,
   },
-  backButtonsContainer: {
+  
+  actionButtonsContainer: {
     flexDirection: "row",
-    width: 140,
+    alignItems: "center",
+    justifyContent: "flex-end", 
+    width: 110,  // 🔥 Reduced width from 140 → 110
     height: "100%",
   },
-  backButton: {
-    alignItems: "center",
+  
+  actionButton: {
     justifyContent: "center",
-    position: "absolute",
-    width: 70,
+    alignItems: "center",
+    width: 50,  // 🔥 Reduced button width (from 60 → 50)
+    height: 45, // 🔥 Reduced button height (from 50 → 45)
+    borderRadius: 8, // Slightly rounder edges
   },
+  
   editButton: {
-    backgroundColor: "#3498db",
-    right: 70,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    backgroundColor: "#2D9CDB",  // 🔵 Blue Edit Button
   },
+  
   deleteButton: {
-    backgroundColor: "#e74c3c",
-    right: 0,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
+    backgroundColor: "#EB5757",  // 🔴 Red Delete Button
   },
-  swipeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
+  
+  
   fab: {
     position: "absolute",
     right: 20,
     bottom: 30,
     backgroundColor: "#205C3B",
   },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start", // Ensures items are aligned to the left
+    marginVertical: 20,
+  },
+  backButton: {
+    marginRight: 10, // Adds spacing between the back button and title
+    padding: 10, // Increases touchable area
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#205C3B",
+  },
+  
 });
 
 export default HouseholdListScreen;

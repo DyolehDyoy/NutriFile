@@ -125,7 +125,12 @@ const FamilyMembersListScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Family Members</Text>
+     <View style={styles.headerContainer}>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <MaterialCommunityIcons name="arrow-left" size={24} color="#1662C6" />
+  </TouchableOpacity>
+  <Text style={styles.header}>Family Members</Text>
+</View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#205C3B" style={styles.loader} />
@@ -257,6 +262,22 @@ const styles = StyleSheet.create({
     bottom: 30,
     backgroundColor: "#1662C6",
   },
+  headerContainer: {
+    flexDirection: "row", // Arrange back button & title in a row
+    alignItems: "center", // Align items vertically
+    justifyContent: "flex-start", // Keep items aligned to the left
+    marginBottom: 16,
+  },
+  backButton: {
+    marginRight: 10, // Space between back button and title
+    padding: 8, // Increase touchable area for better usability
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1662C6",
+  },
+  
 });
 
 export default FamilyMembersListScreen;

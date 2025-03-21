@@ -119,19 +119,16 @@ import { useLocalSearchParams } from "expo-router";
 const NewHouseholdForm = () => {
   const router = useRouter();
   const params = useLocalSearchParams(); // ✅ Get route parameters
+  
 
   useEffect(() => {
     if (params?.reset) {
-      resetFormState(); // ✅ Reset the form state when the screen is opened
+      resetFormState(); // ✅ Runs only once on mount
     }
-  }, [params]);
-
+  }, []); // 🔥 Empty dependency array prevents re-running
   
 
   
-  
-
-
  // ✅ Updates barangay list when district is selected
  const updateBarangays = (district) => {
   formState.selectedDistrict.set(district);
@@ -167,12 +164,6 @@ const handleBarangaySearch = (query) => {
 
 
 
-
-
-
-
-
-
   // ✅ Move resetFormState inside the component
   const resetFormState = () => {
     formState.selectedDistrict.set("");
@@ -200,9 +191,6 @@ const handleBarangaySearch = (query) => {
     formState.loading.set(false);
   };
   
-
-  
-
   
 
   const handleHouseholdNumberChange = (text) => {
@@ -304,7 +292,13 @@ const handleBarangaySearch = (query) => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Household Information</Text>
+      <View style={styles.headerContainer}>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <Icon name="arrow-back" size={24} color="#000" />
+  </TouchableOpacity>
+  <Text style={styles.header}>Household Information</Text>
+</View>
+
 
       
 
@@ -608,6 +602,22 @@ const styles = StyleSheet.create({
     height: 20,
     tintColor: "#007AFF", // Dropdown icon color
   },
+  headerContainer: {
+    flexDirection: "row", // Arrange back button & title in a row
+    alignItems: "center", // Align items vertically
+    marginBottom: 16,
+  },
+  backButton: {
+    marginRight: 10, // Space between back button and title
+    padding: 8, // Increase touchable area for better usability
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "center",
+    flex: 1, // Allow text to be centered while button stays on the left
+  },
+  
 });
 
 

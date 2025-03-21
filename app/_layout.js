@@ -4,7 +4,7 @@ import { PaperProvider } from "react-native-paper";
 export default function Layout() {
   return (
     <PaperProvider>
-      <Stack screenOptions={{ headerShown: true }}>
+      <Stack screenOptions={{ headerShown: false }}>
         {/* Home/Dashboard Screen */}
         <Stack.Screen name="dashboard/index" options={{ title: "Dashboard" }} />
 
