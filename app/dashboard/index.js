@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image } from "react-native"; // ✅ Import Image here
 import { Text, Card, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 
@@ -8,7 +8,13 @@ const DashboardScreen = () => {
 
   return (
     <View style={styles.container}>
-    
+      {/* ✅ Header with Logo */}
+      <View style={styles.headerContainer}>
+        <Image 
+          source={require("../../assets/nutrifile.png")} // ✅ Ensure correct path
+          style={styles.logo}
+        />
+      </View>
 
       {/* New Household Form Card */}
       <TouchableOpacity onPress={() => router.push("/newHouseholdForm")}>
@@ -55,6 +61,19 @@ const styles = StyleSheet.create({
   cardText: { color: "#fff", fontSize: 14, marginTop: 4 },
   row: { flexDirection: "row", alignItems: "center" },
   arrowIcon: { position: "absolute", right: 16, top: 16 },
+
+  // ✅ Adjusted spacing between the logo and cards
+  headerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: -10, // 🔥 Reduced from 30 → 10 (Less space)
+  },
+  logo: {
+    width: 250, // Keeping it big
+    height: 250,
+    resizeMode: "contain",
+  },
 });
+
 
 export default DashboardScreen;
