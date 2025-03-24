@@ -162,10 +162,12 @@ const HouseholdListScreen = () => {
   icon="plus"
   onPress={() => {
     router.push({
-      pathname: "/newHouseholdForm",
+      pathname: "/newHouseholdForm", // or "/newHouseholdForm" depending on your actual folder
+      params: { reset: "true" },
     });
   }}
 />
+
 
     </View>
   );

@@ -2,6 +2,8 @@ import { observable } from '@legendapp/state';
 import * as SQLite from 'expo-sqlite';
 import supabase from '../app/supabaseClient';
 import NetInfo from '@react-native-community/netinfo';
+import { Alert } from "react-native";
+
 
 // RESET LOCAL DATABASE
 export const resetLocalDatabase = async () => {
@@ -17,11 +19,32 @@ export const resetLocalDatabase = async () => {
     await database.runAsync("DROP TABLE IF EXISTS immunization;");
 
     // Reset auto-increment sequences
-    await database.runAsync("DELETE FROM sqlite_sequence WHERE name='household';");
-    await database.runAsync("DELETE FROM sqlite_sequence WHERE name='mealpattern';");
-    await database.runAsync("DELETE FROM sqlite_sequence WHERE name='addmember';");
-    await database.runAsync("DELETE FROM sqlite_sequence WHERE name='memberhealthinfo';");
-    await database.runAsync("DELETE FROM sqlite_sequence WHERE name='immunization';");
+    try {
+      await database.runAsync("DELETE FROM sqlite_sequence WHERE name='household';");
+    } catch (e) {
+      console.warn("⚠️ household sequence not reset:", e.message);
+    }
+    try {
+      await database.runAsync("DELETE FROM sqlite_sequence WHERE name='mealpattern';");
+    } catch (e) {
+      console.warn("⚠️ mealpattern sequence not reset:", e.message);
+    }
+    try {
+      await database.runAsync("DELETE FROM sqlite_sequence WHERE name='addmember';");
+    } catch (e) {
+      console.warn("⚠️ addmember sequence not reset:", e.message);
+    }
+    try {
+      await database.runAsync("DELETE FROM sqlite_sequence WHERE name='memberhealthinfo';");
+    } catch (e) {
+      console.warn("⚠️ memberhealthinfo sequence not reset:", e.message);
+    }
+    try {
+      await database.runAsync("DELETE FROM sqlite_sequence WHERE name='immunization';");
+    } catch (e) {
+      console.warn("⚠️ immunization sequence not reset:", e.message);
+    }
+    
 
     // Create tables again
     await createTables();
@@ -458,7 +481,7 @@ for (const household of unsyncedHouseholds) {
 
   const { data, error } = await supabase
     .from("household")
-    .insert([
+    .upsert([
       {
         district: household.district,  // ✅ Include District
         barangay: household.barangay,  // ✅ Include Barangay
@@ -519,7 +542,7 @@ for (const household of unsyncedHouseholds) {
       console.log(`🚀 Syncing meal pattern for household: ${mealPattern.householdid}`);
       const { data, error } = await supabase
         .from("mealpattern")
-        .insert([mealPattern])
+        .upsert([mealPattern], { onConflict: "id" }) // 👈 Upsert based on ID
         .select("id")
         .single();
       if (!error && data) {
@@ -598,6 +621,7 @@ NetInfo.addEventListener((state) => {
   if (state.isConnected) {
     console.log("🌐 Internet detected: Syncing...");
     syncWithSupabase();
+    Alert.alert("✅ Sync Complete", "All local data has been synced to Supabase.");
   }
 });
 

@@ -43,12 +43,31 @@ const MealPatternScreen = () => {
   const { householdId } = useLocalSearchParams();
   const [menuVisible, setMenuVisible] = useState(false);
 
+
+  const resetFormState = () => {
+    formState.breakfast.set("");
+    formState.lunch.set("");
+    formState.dinner.set("");
+    formState.foodBelief.set(false);
+    formState.foodBeliefText.set("");
+    formState.healthConsideration.set("");
+    formState.whatIfSick.set("");
+    formState.checkupFrequency.set("Monthly");
+    formState.loading.set(false);
+    console.log("🍽️ Meal Pattern form state reset.");
+  };
+  
+
   useEffect(() => {
     if (!householdId) {
       Alert.alert("Error", "Household ID is missing. Returning to the previous screen.");
       router.back();
+    } else {
+      resetFormState(); // 🧼 Reset on open
     }
   }, [householdId]);
+  
+  
 
   useEffect(() => {
     // ✅ Animate Food Beliefs Input when switch is toggled
@@ -217,9 +236,15 @@ const MealPatternScreen = () => {
       </Card>
 
       {/* Save Button */}
-      <Button mode="contained" style={styles.button} onPress={handleSave} disabled={formState.loading.get()}>
-        {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
-      </Button>
+      <Button 
+  mode="contained" 
+  style={styles.button} 
+  buttonColor="#114ea9" // ✅ Change background color
+  onPress={handleSave} 
+  disabled={formState.loading.get()}
+>
+  {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
+</Button>
     </ScrollView>
   );
 };

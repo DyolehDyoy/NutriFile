@@ -122,13 +122,13 @@ const NewHouseholdForm = () => {
   
 
   useEffect(() => {
-    if (params?.reset) {
-      resetFormState(); // ✅ Runs only once on mount
+    if (params?.reset === "true") {
+      console.log("🧼 Reset triggered from params:", params);
+      resetFormState(); // ✅ Only run once
     }
-  }, []); // 🔥 Empty dependency array prevents re-running
+  }, []); // ✅ Empty dependency array prevents loop
   
 
-  
  // ✅ Updates barangay list when district is selected
  const updateBarangays = (district) => {
   formState.selectedDistrict.set(district);
@@ -553,9 +553,15 @@ const handleBarangaySearch = (query) => {
       </Card>
 
       {/* Save Button */}
-      <Button mode="contained" style={styles.button} onPress={handleSave} disabled={formState.loading.get()}>
-      {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
-      </Button>
+<Button 
+  mode="contained" 
+  style={styles.button} 
+  buttonColor="#114ea9" // ✅ Change background color
+  onPress={handleSave} 
+  disabled={formState.loading.get()}
+>
+  {formState.loading.get() ? <ActivityIndicator color="white" /> : "Save & Next"}
+</Button>
     </ScrollView>
   );
 };
@@ -567,7 +573,7 @@ const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   card: { marginBottom: 16, padding: 10, backgroundColor: "white", borderRadius: 10, elevation: 2 },
   toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 5 },
-  button: { marginTop: 20, padding: 10 },
+  button: { marginTop: 20, padding: 10},
   errorText: { color: "red", fontSize: 14 },
 
   // Updated dropdown styles to make it visible

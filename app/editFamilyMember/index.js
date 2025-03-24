@@ -1,5 +1,7 @@
 import { updateMemberData } from "../database";  // ✅ Import update function
 import React, { useState, useEffect } from "react";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+
 import {
   View,
   ScrollView,
@@ -150,7 +152,15 @@ const EditFamilyMemberScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Edit Family Member</Text>
+     <View style={styles.headerRow}>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <MaterialCommunityIcons name="arrow-left" size={28} color="#000" />
+  </TouchableOpacity>
+  <View style={styles.headerCenter}>
+    <Text style={styles.header}>Edit Family Member</Text>
+  </View>
+</View>
+
 
       <TextInput label="First Name" mode="outlined" value={member.firstname} onChangeText={(text) => setMember({ ...member, firstname: text })} style={styles.input} />
       <TextInput label="Last Name" mode="outlined" value={member.lastname} onChangeText={(text) => setMember({ ...member, lastname: text })} style={styles.input} />
@@ -223,6 +233,30 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 20,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    position: "relative",
+  },
+  
+  backButton: {
+    position: "absolute",
+    left: 0,
+    padding: 4,
+  },
+  
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+  },
+  
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#000",
+  },  
 });
 
 export default EditFamilyMemberScreen;

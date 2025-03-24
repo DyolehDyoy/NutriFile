@@ -1,5 +1,6 @@
 import supabase from "../supabaseClient";  // ✅ Import Supabase client
 import React, { useState, useEffect } from "react"; // ✅ Import useEffect
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { 
   View, 
   ScrollView, 
@@ -80,8 +81,8 @@ const AddMemberScreen = () => {
         autoClassification = "Under 5 (1-4 years old)";
       } else if (calculatedAge < 10) {
         autoClassification = "School Aged Children (5-9 years old)";
-      } else if (calculatedAge < 18) {
-        autoClassification = "Young adult (10-17 years old";
+      } else if (calculatedAge < 17) {
+        autoClassification = "Young adult (10-17 years old)";
       } else if (calculatedAge < 60) {
         autoClassification = "Adult 18-59 years old";
       } else {
@@ -171,7 +172,13 @@ const AddMemberScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Family Members</Text>
+      <View style={styles.headerRow}>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <MaterialCommunityIcons name="arrow-left" size={28} color="#000" />
+  </TouchableOpacity>
+  <Text style={styles.headerText}>Family Members</Text>
+</View>
+
 
       <TextInput label="Last Name" mode="outlined" value={lastName} onChangeText={setLastName} style={styles.input} />
       <TextInput label="First Name" mode="outlined" value={firstName} onChangeText={setFirstName} style={styles.input} />
@@ -223,6 +230,7 @@ const AddMemberScreen = () => {
           mode="date"
           display="default"
           onChange={handleDateChange}
+          
         />
       )}
 
@@ -246,8 +254,8 @@ const AddMemberScreen = () => {
           { label: "Under 5 (1-4 years old)", value: "Under 5 (1-4 years old)" },
           { label: "School Aged Children (5-9 years old)", value: "School Aged Children (5-9 years old)" },
           { label: "Young adult (10-17 years old)", value: "Young adult (10-17 years old)" },
-          { label: "Senior citizen (60 years old above)", value: "Senior citizen (60 years old above)" },
           { label: "Adult 18-59 years old", value: "Adult 18-59 years old" },
+          { label: "Senior citizen (60 years old above)", value: "Senior citizen (60 years old above)" },
         ]}
         style={styles.pickerSelectStyles}
       />
@@ -373,6 +381,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "black",
   },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  
+  backButton: {
+    marginRight: 10,
+    padding: 4,
+  },
+  
+  headerText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  
 });
 
 export default AddMemberScreen;

@@ -2,6 +2,8 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity, Image } from "react-native"; // ✅ Import Image here
 import { Text, Card, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
+import { syncWithSupabase } from "../database"; // Adjust path if needed
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const DashboardScreen = () => {
   const router = useRouter();
@@ -15,6 +17,12 @@ const DashboardScreen = () => {
           style={styles.logo}
         />
       </View>
+
+      <TouchableOpacity onPress={syncWithSupabase} style={styles.syncButton}>
+  <MaterialCommunityIcons name="cloud-upload" size={24} color="#fff" />
+  <Text style={styles.syncText}>Sync Data</Text>
+</TouchableOpacity>
+
 
       {/* New Household Form Card */}
       <TouchableOpacity onPress={() => router.push("/newHouseholdForm")}>
@@ -73,6 +81,25 @@ const styles = StyleSheet.create({
     height: 250,
     resizeMode: "contain",
   },
+  syncButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1662C6",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginTop: -10,  // Optional: move closer to logo
+    marginBottom: 20,
+  },
+  
+  syncText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  
 });
 
 
