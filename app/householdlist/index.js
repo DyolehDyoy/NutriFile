@@ -111,7 +111,7 @@ const HouseholdListScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <TouchableOpacity onPress={() => router.replace("/dashboard")} style={styles.backButton}>
     <MaterialCommunityIcons name="arrow-left" size={24} color="#205C3B" />
   </TouchableOpacity>
   <Text style={styles.header}>Households</Text>

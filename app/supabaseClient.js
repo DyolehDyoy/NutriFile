@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Pull directly from process.env (requires eas.json env config for builds)
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_KEY;
 
-// Supabase Project Credentials
-const SUPABASE_URL = "https://tcwtonocjgkxllnkunjv.supabase.co";  // ✅ Supabase Project URL
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjd3Rvbm9jamdreGxsbmt1bmp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzNDMzMjIsImV4cCI6MjA1NDkxOTMyMn0.eaPDALto5IP7cYKBJAXCgGKmfz-5D75xz9mnwJP7Dys";  // ✅ Safe for public use
+// Optional: fallback for local dev (Expo Go only)
+const fallbackUrl = "https://tcwtonocjgkxllnkunjv.supabase.co";
+const fallbackKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 
-// Initialize Supabase Client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
-  
-  export default supabase;
+const supabase = createClient(
+  SUPABASE_URL || fallbackUrl,
+  SUPABASE_ANON_KEY || fallbackKey
+);
+
+export default supabase;

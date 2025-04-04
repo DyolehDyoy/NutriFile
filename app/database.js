@@ -192,12 +192,11 @@ export const createTables = async () => {
 
 // INSERT FUNCTIONS
 
-// Insert Household
 export const insertHousehold = async (data) => {
   const database = await openDatabase();
 
   if (!data.householdnumber || data.householdnumber.trim() === "") {
-    console.error("❌ Cannot insert household: householdnumber is missing or empty.");
+    Alert.alert("Missing Info", "Household number is required.");
     return null;
   }
 
@@ -208,42 +207,65 @@ export const insertHousehold = async (data) => {
   );
 
   if (existingHousehold) {
-    console.warn(`⚠️ Household with householdnumber ${data.householdnumber} already exists!`);
+    Alert.alert("Duplicate Entry", `Household #${data.householdnumber} already exists locally.`);
     return existingHousehold.id;
   }
 
-  console.log("📌 Inserting new household...");
+  console.log("📌 Inserting new household locally...");
   try {
     await database.runAsync(
       `INSERT INTO household (
         district, barangay, sitio, householdnumber, dateofvisit, toilet, sourceofwater, 
         sourceofincome, foodproductionvegetable, foodproductionanimals, membership4ps, synced
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, // ✅ 10 columns, 10 values
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
-        data.district,  // ✅ Added District
-        data.barangay,  // ✅ Added Barangay
+        data.district,
+        data.barangay,
         data.sitio,
         data.householdnumber,
         data.dateofvisit,
         data.toilet,
         data.sourceofwater,
         data.sourceofincome,
-        data.foodproductionvegetable, // ✅ New column
-        data.foodproductionanimals, // ✅ New column
+        data.foodproductionvegetable,
+        data.foodproductionanimals,
         data.membership4ps,
-        0 // ✅ synced field
+        0
       ]
     );
 
     const result = await database.getFirstAsync(`SELECT last_insert_rowid() AS id;`);
     const householdId = result.id;
-    console.log("✅ Household data saved, ID:", householdId);
+    console.log("✅ Household saved locally with ID:", householdId);
+
+    const net = await NetInfo.fetch();
+    if (net.isConnected) {
+      console.log("🌐 Device is online. Attempting Supabase sync...");
+      const { error } = await supabase
+        .from("household")
+        .insert([{ ...data, id: householdId }]);
+
+      if (!error) {
+        await database.runAsync(`UPDATE household SET synced = 1 WHERE id = ?;`, [householdId]);
+        Alert.alert("Success", "Household saved and synced to the cloud.");
+      } else {
+        console.warn("⚠️ Supabase sync failed:", error.message);
+        Alert.alert("Saved Locally", "Saved offline. Will sync when online.");
+      }
+    } else {
+      console.log("📴 Offline mode. Skipping Supabase sync.");
+      Alert.alert("Saved Locally", "You're offline. Data will sync when connected.");
+    }
+
     return householdId;
+
   } catch (error) {
-    console.error("❌ Error inserting household data:", error);
+    console.error("❌ Error inserting household:", error);
+    Alert.alert("Error", "Something went wrong while saving data.");
     return null;
   }
 };
+
 
 
 // Insert Meal Pattern

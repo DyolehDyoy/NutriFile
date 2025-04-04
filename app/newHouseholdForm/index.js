@@ -293,9 +293,10 @@ const handleBarangaySearch = (query) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.headerContainer}>
-  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-    <Icon name="arrow-back" size={24} color="#000" />
-  </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.replace("/dashboard")} style={styles.backButton}>
+  <Icon name="arrow-back" size={24} color="#000" />
+</TouchableOpacity>
+
   <Text style={styles.header}>Household Information</Text>
 </View>
 

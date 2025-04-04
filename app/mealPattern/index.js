@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import Icon from "react-native-vector-icons/MaterialIcons";
+
 import {
   View,
   ScrollView,
@@ -123,7 +125,13 @@ const MealPatternScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Meal Pattern</Text>
+      <View style={styles.headerContainer}>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <Icon name="arrow-back" size={24} color="#000" />
+  </TouchableOpacity>
+  <Text style={styles.header}>Meal Pattern</Text>
+</View>
+
 
       {/* Meal Entries */}
       <Card style={styles.card}>
