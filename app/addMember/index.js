@@ -1,16 +1,26 @@
 import supabase from "../supabaseClient";  // ✅ Import Supabase client
 import React, { useState, useEffect } from "react"; // ✅ Import useEffect
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { 
-  View, 
-  ScrollView, 
-  StyleSheet, 
-  Platform, 
-  TouchableOpacity, 
-  Alert 
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Alert
 } from "react-native";
-import { Text, TextInput, Button, RadioButton, Card, Divider, Checkbox } from "react-native-paper";
-import RNPickerSelect from "react-native-picker-select";
+import {
+  Text,
+  TextInput,
+  Button,
+  RadioButton,
+  Card,
+  Divider,
+  Checkbox
+} from "react-native-paper";
+// Replace RNPickerSelect with Picker
+import { Picker } from "@react-native-picker/picker";
+
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
@@ -26,7 +36,7 @@ const AddMemberScreen = () => {
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [relationship, setRelationship] = useState("");
-  const [otherRelationship, setOtherRelationship] = useState(""); // New state for custom relationship input
+  const [otherRelationship, setOtherRelationship] = useState("");
   const [sex, setSex] = useState("");
   const [age, setAge] = useState("");
   const [dateofbirth, setdateofbirth] = useState(null);
@@ -37,7 +47,7 @@ const AddMemberScreen = () => {
   const [height, setHeight] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
 
-  // New states for health risk multi-select dropdown UI
+  // For multi-select health risk checkboxes
   const [showHealthRiskDropdown, setShowHealthRiskDropdown] = useState(false);
   const riskOptions = [
     "Adolescent Pregnant",
@@ -70,7 +80,7 @@ const AddMemberScreen = () => {
       }
       setAge(calculatedAge.toString());
 
-      // Calculate classification based on the difference in days and age
+      // Auto-set classification
       const diffDays = (now - selectedDate) / (1000 * 3600 * 24);
       let autoClassification = "";
       if (diffDays <= 60) {
@@ -99,109 +109,114 @@ const AddMemberScreen = () => {
 
   const saveMemberData = async () => {
     console.log("📌 Debug: educationLevel before insert:", educationLevel);
-
+  
     try {
-        if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
-            Alert.alert("Error", "Household ID is missing or invalid.");
-            return;
-        }
-
-        if (
-            !firstName.trim() ||
-            !lastName.trim() ||
-            !relationship ||
-            !sex ||
-            !dateofbirth ||
-            !educationLevel
-        ) {
-            Alert.alert("Incomplete Data", "Please fill in all required fields.");
-            return;
-        }
-
-        const finalRelationship = relationship === "Other" ? otherRelationship : relationship;
-        const finalHealthRisk = selectedHealthRisks.join(", ");
-        const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
-
-        const newMember = {
-            firstname: firstName,  // ✅ Match Supabase column name
-            lastname: lastName,    // ✅ Match Supabase column name
-            relationship: finalRelationship,
-            sex,
-            age: age ? age.toString() : null, // ✅ Store age as text
-            dateofbirth: formattedDOB,
-            classification,  // ✅ This column exists in Supabase
-            healthrisk: finalHealthRisk || "",
-            weight: weight ? parseFloat(weight) : null,
-            height: height ? parseFloat(height) : null,
-            educationallevel: educationLevel || "",  // ✅ Corrected column name
-            householdid: parsedHouseholdId,
-        };
-
-        console.log("🛠️ DEBUG: Member Data Before Insert:", newMember); // 🔍 Log before inserting
-
-        const { data, error } = await supabase
-            .from("addmember")
-            .insert([newMember])
-            .select();
-
-        if (error) {
-            console.error("❌ Error inserting member data:", error.message);
-            Alert.alert("Error", "Failed to save member data.");
-            return;
-        }
-
-        console.log("✅ Member inserted successfully!", data);
-        await syncWithSupabase();
-        Alert.alert("Success", "Member data saved successfully!");
-
-        if (data.length > 0) {
-            router.push({
-                pathname: "/memberHealthInfo",
-                params: { memberId: data[0].id, householdId: parsedHouseholdId },
-            });
-        } else {
-            Alert.alert("Error", "Failed to retrieve new member ID.");
-        }
-
+      if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
+        Alert.alert("Error", "Household ID is missing or invalid.");
+        return;
+      }
+  
+      if (
+        !firstName.trim() ||
+        !lastName.trim() ||
+        !relationship ||
+        !sex ||
+        !dateofbirth ||
+        !educationLevel
+      ) {
+        Alert.alert("Incomplete Data", "Please fill in all required fields.");
+        return;
+      }
+  
+      const finalRelationship =
+        relationship === "Other" ? otherRelationship : relationship;
+      const finalHealthRisk = selectedHealthRisks.join(", ");
+      const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
+  
+      const newMember = {
+        firstname: firstName,
+        lastname: lastName,
+        relationship: finalRelationship,
+        sex,
+        age: age ? age.toString() : null,
+        dateofbirth: formattedDOB,
+        classification,
+        healthrisk: finalHealthRisk || "",
+        weight: weight ? parseFloat(weight) : null,
+        height: height ? parseFloat(height) : null,
+        educationallevel: educationLevel || "",
+        householdid: parsedHouseholdId
+      };
+  
+      console.log("🛠️ DEBUG: Member Data Before Insert:", newMember);
+  
+      // Insert the member locally; this function also attempts to sync if online.
+      const localMemberId = await insertMember(newMember);
+  
+      if (!localMemberId) {
+        Alert.alert("Error", "Failed to save member data locally.");
+        return;
+      }
+  
+      Alert.alert("Success", "Member data saved successfully!");
+      router.push({
+        pathname: "/memberHealthInfo",
+        params: { memberId: localMemberId, householdId: parsedHouseholdId },
+      });
+  
     } catch (error) {
-        console.error("❌ Error saving member data:", error);
-        Alert.alert("Error", "An error occurred while saving the data.");
+      console.error("❌ Error saving member data:", error);
+      Alert.alert("Error", "An error occurred while saving the data.");
     }
-};
-
+  };
+  
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.headerRow}>
-  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-    <MaterialCommunityIcons name="arrow-left" size={28} color="#000" />
-  </TouchableOpacity>
-  <Text style={styles.headerText}>Family Members</Text>
-</View>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <MaterialCommunityIcons name="arrow-left" size={28} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerText}>Family Members</Text>
+      </View>
 
-
-      <TextInput label="Last Name" mode="outlined" value={lastName} onChangeText={setLastName} style={styles.input} />
-      <TextInput label="First Name" mode="outlined" value={firstName} onChangeText={setFirstName} style={styles.input} />
+      <TextInput
+        label="Last Name"
+        mode="outlined"
+        value={lastName}
+        onChangeText={setLastName}
+        style={styles.input}
+      />
+      <TextInput
+        label="First Name"
+        mode="outlined"
+        value={firstName}
+        onChangeText={setFirstName}
+        style={styles.input}
+      />
 
       <Text style={styles.subHeader}>Relationship of Member to Household</Text>
-      <RNPickerSelect
-        onValueChange={setRelationship}
-        items={[
-          { label: "Head", value: "Head" },
-          { label: "Spouse", value: "Spouse" },
-          { label: "Son", value: "Son" },
-          { label: "Daughter", value: "Daughter" },
-          { label: "Other", value: "Other" },
-        ]}
-        style={styles.pickerSelectStyles}
-      />
+      {/* Replace RNPickerSelect with a simple Picker */}
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={relationship}
+          onValueChange={(value) => setRelationship(value)}
+        >
+          <Picker.Item label="Select Relationship" value="" />
+          <Picker.Item label="Head" value="Head" />
+          <Picker.Item label="Spouse" value="Spouse" />
+          <Picker.Item label="Son" value="Son" />
+          <Picker.Item label="Daughter" value="Daughter" />
+          <Picker.Item label="Other" value="Other" />
+        </Picker>
+      </View>
       {relationship === "Other" && (
-        <TextInput 
-          label="Please specify relationship" 
-          mode="outlined" 
-          value={otherRelationship} 
-          onChangeText={setOtherRelationship} 
-          style={styles.input} 
+        <TextInput
+          label="Please specify relationship"
+          mode="outlined"
+          value={otherRelationship}
+          onChangeText={setOtherRelationship}
+          style={styles.input}
         />
       )}
 
@@ -230,7 +245,6 @@ const AddMemberScreen = () => {
           mode="date"
           display="default"
           onChange={handleDateChange}
-          
         />
       )}
 
@@ -245,24 +259,30 @@ const AddMemberScreen = () => {
       />
 
       <Text style={styles.subHeader}>Classification by Age</Text>
-      <RNPickerSelect
-        onValueChange={setClassification}
-        value={classification}  // Pre-fill classification based on birthdate
-        items={[
-          { label: "Newborn (0-60 days)", value: "Newborn (0-60 days)" },
-          { label: "Infant (61 days-11months)", value: "Infant (61 days-11months)" },
-          { label: "Under 5 (1-4 years old)", value: "Under 5 (1-4 years old)" },
-          { label: "School Aged Children (5-9 years old)", value: "School Aged Children (5-9 years old)" },
-          { label: "Young adult (10-17 years old)", value: "Young adult (10-17 years old)" },
-          { label: "Adult 18-59 years old", value: "Adult 18-59 years old" },
-          { label: "Senior citizen (60 years old above)", value: "Senior citizen (60 years old above)" },
-        ]}
-        style={styles.pickerSelectStyles}
-      />
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={classification}
+          onValueChange={(value) => setClassification(value)}
+        >
+          <Picker.Item label="Select Classification" value="" />
+          <Picker.Item label="Newborn (0-60 days)" value="Newborn (0-60 days)" />
+          <Picker.Item label="Infant (61 days-11months)" value="Infant (61 days-11months)" />
+          <Picker.Item label="Under 5 (1-4 years old)" value="Under 5 (1-4 years old)" />
+          <Picker.Item
+            label="School Aged Children (5-9 years old)"
+            value="School Aged Children (5-9 years old)"
+          />
+          <Picker.Item label="Young adult (10-17 years old)" value="Young adult (10-17 years old)" />
+          <Picker.Item label="Adult 18-59 years old" value="Adult 18-59 years old" />
+          <Picker.Item
+            label="Senior citizen (60 years old above)"
+            value="Senior citizen (60 years old above)"
+          />
+        </Picker>
+      </View>
 
       <Text style={styles.subHeader}>Health Risk Group</Text>
-      {/* Improved UI for Health Risk Group as a dropdown checkbox */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.healthRiskDropdown}
         onPress={() => setShowHealthRiskDropdown(!showHealthRiskDropdown)}
       >
@@ -287,28 +307,44 @@ const AddMemberScreen = () => {
       )}
 
       <View style={styles.row}>
-        <TextInput label="Weight (kg)" mode="outlined" value={weight} onChangeText={setWeight} keyboardType="numeric" style={styles.inputSmall} />
-        <TextInput label="Height (cm)" mode="outlined" value={height} onChangeText={setHeight} keyboardType="numeric" style={styles.inputSmall} />
+        <TextInput
+          label="Weight (kg)"
+          mode="outlined"
+          value={weight}
+          onChangeText={setWeight}
+          keyboardType="numeric"
+          style={styles.inputSmall}
+        />
+        <TextInput
+          label="Height (cm)"
+          mode="outlined"
+          value={height}
+          onChangeText={setHeight}
+          keyboardType="numeric"
+          style={styles.inputSmall}
+        />
       </View>
 
       <Text style={styles.subHeader}>Educational Level</Text>
-      <RNPickerSelect
-        onValueChange={setEducationLevel}
-        items={[
-          { label: "Elementary Level", value: "Elementary Level" },
-          { label: "Elementary Graduate", value: "Elementary Graduate" },
-          { label: "High School Level", value: "High School Level" },
-          { label: "High School Graduate", value: "High School Graduate" },
-          { label: "Junior High School Level", value: "Junior High School Level" },
-          { label: "Junior High School Graduate", value: "Junior High School Graduate" },
-          { label: "Senior High School Level", value: "Senior High School Level" },
-          { label: "Senior High School Graduate", value: "Senior High School Graduate" },
-          { label: "College Level", value: "College Level" },
-          { label: "College Graduate", value: "College Graduate" },
-          { label: "Post Graduate", value: "Post Graduate" },
-        ]}
-        style={styles.pickerSelectStyles}
-      />
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={educationLevel}
+          onValueChange={(value) => setEducationLevel(value)}
+        >
+          <Picker.Item label="Select Educational Level" value="" />
+          <Picker.Item label="Elementary Level" value="Elementary Level" />
+          <Picker.Item label="Elementary Graduate" value="Elementary Graduate" />
+          <Picker.Item label="High School Level" value="High School Level" />
+          <Picker.Item label="High School Graduate" value="High School Graduate" />
+          <Picker.Item label="Junior High School Level" value="Junior High School Level" />
+          <Picker.Item label="Junior High School Graduate" value="Junior High School Graduate" />
+          <Picker.Item label="Senior High School Level" value="Senior High School Level" />
+          <Picker.Item label="Senior High School Graduate" value="Senior High School Graduate" />
+          <Picker.Item label="College Level" value="College Level" />
+          <Picker.Item label="College Graduate" value="College Graduate" />
+          <Picker.Item label="Post Graduate" value="Post Graduate" />
+        </Picker>
+      </View>
 
       <Button mode="contained" style={styles.button} onPress={saveMemberData}>
         Save Member
@@ -319,37 +355,27 @@ const AddMemberScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-  header: { fontSize: 22, fontWeight: "bold", marginBottom: 16, textAlign: "center" },
-  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
+  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  backButton: { marginRight: 10, padding: 4 },
+  headerText: { fontSize: 24, fontWeight: "bold", color: "#000" },
+
   input: { marginBottom: 16 },
   inputSmall: { width: "48%", marginBottom: 16 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   radioContainer: { flexDirection: "row", alignItems: "center" },
   button: { marginTop: 20 },
-  pickerSelectStyles: {
-    inputIOS: {
-      fontSize: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 10,
-      borderWidth: 1,
-      borderColor: "gray",
-      borderRadius: 4,
-      color: "black",
-      backgroundColor: "#f9f9f9",
-      paddingRight: 30,
-    },
-    inputAndroid: {
-      fontSize: 16,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      borderWidth: 1,
-      borderColor: "gray",
-      borderRadius: 4,
-      color: "black",
-      backgroundColor: "#f9f9f9",
-      paddingRight: 30,
-    },
+
+  subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
+
+  // Simple container style for Picker
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "gray",
+    borderRadius: 4,
+    marginBottom: 16,
+    backgroundColor: "#f9f9f9",
   },
+
   healthRiskDropdown: {
     borderWidth: 1,
     borderColor: "gray",
@@ -381,28 +407,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "black",
   },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  
-  backButton: {
-    marginRight: 10,
-    padding: 4,
-  },
-  
-  headerText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  
 });
 
 export default AddMemberScreen;

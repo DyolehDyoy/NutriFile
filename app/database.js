@@ -302,32 +302,40 @@ export const insertMealPattern = async (householdid, data) => {
 };
 
 // Insert Member 
+// Insert Member (Offline-First)
 export const insertMember = async (data) => {
   const database = await openDatabase();
-  console.log("🛠️ DEBUG: insertMember Data Before Insert:", JSON.stringify(data, null, 2));
-  if (!data.firstName || !data.lastName || !data.householdid) {
+
+  // Basic validations
+  if (!data.firstname || !data.lastname || !data.householdid) {
     console.error("❌ Cannot insert member: Missing required fields.");
     return null;
   }
+
+  // Validate and parse date
   if (!data.dateofbirth || isNaN(Date.parse(data.dateofbirth))) {
     console.error("❌ Invalid date format for dateofbirth:", data.dateofbirth);
     return null;
   }
-  // Convert empty strings for weight and height to NULL
-  const weightValue = data.weight && !isNaN(parseFloat(data.weight)) ? parseFloat(data.weight) : null;
-  const heightValue = data.height && !isNaN(parseFloat(data.height)) ? parseFloat(data.height) : null;
-  console.log("📌 Inserting new member...");
+
+  // Convert empty strings to NULL for weight/height
+  const weightValue =
+    data.weight && !isNaN(parseFloat(data.weight)) ? parseFloat(data.weight) : null;
+  const heightValue =
+    data.height && !isNaN(parseFloat(data.height)) ? parseFloat(data.height) : null;
+
   try {
+    // 1) Insert member locally
     await database.runAsync(
       `INSERT INTO addmember (
-          householdid, firstname, lastname, relationship, sex, dateofbirth,
-          classification, healthrisk, weight, height, educationallevel, synced
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        householdid, firstname, lastname, relationship, sex, dateofbirth,
+        classification, healthrisk, weight, height, educationallevel, synced
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);`, // synced=0 by default
       [
         data.householdid,
-        data.firstName,
-        data.lastName,
+        data.firstname,
+        data.lastname,
         data.relationship,
         data.sex,
         data.dateofbirth,
@@ -335,18 +343,66 @@ export const insertMember = async (data) => {
         data.healthrisk || "",
         weightValue,
         heightValue,
-        data.educationLevel,
-        0
+        data.educationallevel
       ]
     );
-    const result = await database.getFirstAsync(`SELECT last_insert_rowid() AS id;`);
-    console.log("✅ Member data saved, ID:", result.id);
-    return result.id;
+
+    // Grab the new local member ID
+    const result = await database.getFirstAsync(
+      `SELECT last_insert_rowid() AS id;`
+    );
+    const localMemberId = result.id;
+    console.log("✅ Member data saved locally, ID:", localMemberId);
+
+    // 2) Check for internet and sync immediately if online
+    const net = await NetInfo.fetch();
+    if (net.isConnected) {
+      console.log("🌐 Online: Attempting to sync member with Supabase...");
+      const { data: supabaseData, error } = await supabase
+        .from("addmember")
+        .upsert(
+          {
+            id: localMemberId, // We'll store the local ID as the primary key
+            householdid: data.householdid,
+            firstname: data.firstname,
+            lastname: data.lastname,
+            relationship: data.relationship,
+            sex: data.sex,
+            dateofbirth: data.dateofbirth,
+            classification: data.classification,
+            healthrisk: data.healthrisk || "",
+            weight: weightValue,
+            height: heightValue,
+            educationallevel: data.educationallevel
+          },
+          { onConflict: "id" }
+        ) // upsert means insert or update
+        .select()
+        .single();
+
+      if (!error && supabaseData) {
+        console.log("✅ Member synced with Supabase ID:", supabaseData.id);
+        // Mark this record as synced in local DB
+        await database.runAsync(
+          `UPDATE addmember SET synced = 1 WHERE id = ?;`,
+          [localMemberId]
+        );
+      } else {
+        console.error("❌ Error syncing member:", error?.message || "Unknown error");
+      }
+    } else {
+      console.log("📴 Offline mode, member saved locally. Will sync later.");
+    }
+
+    // Return the local member ID so the UI can navigate or do further actions
+    return localMemberId;
+
   } catch (error) {
     console.error("❌ Error inserting member data:", error);
     return null;
   }
 };
+
 
 // Update Member – You can keep this if you want, but not needed for health data
 export const updateMember = async (memberId, data) => {
