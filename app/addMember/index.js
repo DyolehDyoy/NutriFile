@@ -1,5 +1,4 @@
-import supabase from "../supabaseClient";  // ✅ Import Supabase client
-import React, { useState, useEffect } from "react"; // ✅ Import useEffect
+import React, { useState, useEffect } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   View,
@@ -7,7 +6,7 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-  Alert
+  Alert,
 } from "react-native";
 import {
   Text,
@@ -16,23 +15,31 @@ import {
   RadioButton,
   Card,
   Divider,
-  Checkbox
+  Checkbox,
 } from "react-native-paper";
-// Replace RNPickerSelect with Picker
 import { Picker } from "@react-native-picker/picker";
-
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
-import { insertMember, syncWithSupabase } from "../database";  // Import insertMember
-import { useLocalSearchParams } from "expo-router";
+
+// Import your insertMember function
+import { insertMember, syncWithSupabase } from "../database";
 
 const AddMemberScreen = () => {
   const router = useRouter();
 
+  // We do NOT parse householdId to a number
   const { householdId } = useLocalSearchParams();
-  const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
-  
+
+  // If your route uses UUID, do a check that it’s a valid string
+  useEffect(() => {
+    console.log("✅ Household ID received:", householdId);
+    if (!householdId || typeof householdId !== "string" || householdId.length < 30) {
+      Alert.alert("Error", "Household ID is missing or invalid (not a UUID). Going back.");
+      router.back();
+    }
+  }, [householdId]);
+
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [relationship, setRelationship] = useState("");
@@ -42,30 +49,31 @@ const AddMemberScreen = () => {
   const [dateofbirth, setdateofbirth] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [classification, setClassification] = useState("");
-  const [healthrisk, setHealthRisk] = useState(""); // replaced by selectedHealthRisks later
+  // For multi-select health risk
+  const [selectedHealthRisks, setSelectedHealthRisks] = useState([]);
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
 
-  // For multi-select health risk checkboxes
-  const [showHealthRiskDropdown, setShowHealthRiskDropdown] = useState(false);
   const riskOptions = [
     "Adolescent Pregnant",
     "Post Partum (upon birth 6-8 weeks)",
     "Reproductive Age (not pregnant) 15-49 years old",
     "Persons with Disability",
-    "None of the above"
+    "None of the above",
   ];
-  const [selectedHealthRisks, setSelectedHealthRisks] = useState([]);
+  const [showHealthRiskDropdown, setShowHealthRiskDropdown] = useState(false);
 
+  // Toggle function for multi-select checkboxes
   const toggleRisk = (risk) => {
     if (selectedHealthRisks.includes(risk)) {
-      setSelectedHealthRisks(selectedHealthRisks.filter(r => r !== risk));
+      setSelectedHealthRisks(selectedHealthRisks.filter((r) => r !== risk));
     } else {
       setSelectedHealthRisks([...selectedHealthRisks, risk]);
     }
   };
 
+  // Date handling
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
@@ -80,7 +88,7 @@ const AddMemberScreen = () => {
       }
       setAge(calculatedAge.toString());
 
-      // Auto-set classification
+      // Auto-set classification by age
       const diffDays = (now - selectedDate) / (1000 * 3600 * 24);
       let autoClassification = "";
       if (diffDays <= 60) {
@@ -102,74 +110,61 @@ const AddMemberScreen = () => {
     }
   };
 
-  useEffect(() => {
-    console.log("✅ Household ID received:", householdId);
-    console.log("🔍 Parsed Household ID:", parsedHouseholdId);
-  }, [householdId, parsedHouseholdId]);
-
   const saveMemberData = async () => {
-    console.log("📌 Debug: educationLevel before insert:", educationLevel);
-  
-    try {
-      if (!parsedHouseholdId || isNaN(parsedHouseholdId)) {
-        Alert.alert("Error", "Household ID is missing or invalid.");
-        return;
-      }
-  
-      if (
-        !firstName.trim() ||
-        !lastName.trim() ||
-        !relationship ||
-        !sex ||
-        !dateofbirth ||
-        !educationLevel
-      ) {
-        Alert.alert("Incomplete Data", "Please fill in all required fields.");
-        return;
-      }
-  
-      const finalRelationship =
-        relationship === "Other" ? otherRelationship : relationship;
-      const finalHealthRisk = selectedHealthRisks.join(", ");
-      const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
-  
-      const newMember = {
-        firstname: firstName,
-        lastname: lastName,
-        relationship: finalRelationship,
-        sex,
-        age: age ? age.toString() : null,
-        dateofbirth: formattedDOB,
-        classification,
-        healthrisk: finalHealthRisk || "",
-        weight: weight ? parseFloat(weight) : null,
-        height: height ? parseFloat(height) : null,
-        educationallevel: educationLevel || "",
-        householdid: parsedHouseholdId
-      };
-  
-      console.log("🛠️ DEBUG: Member Data Before Insert:", newMember);
-  
-      // Insert the member locally; this function also attempts to sync if online.
-      const localMemberId = await insertMember(newMember);
-  
-      if (!localMemberId) {
-        Alert.alert("Error", "Failed to save member data locally.");
-        return;
-      }
-  
-      Alert.alert("Success", "Member data saved successfully!");
-      router.push({
-        pathname: "/memberHealthInfo",
-        params: { memberId: localMemberId, householdId: parsedHouseholdId },
-      });
-  
-    } catch (error) {
-      console.error("❌ Error saving member data:", error);
-      Alert.alert("Error", "An error occurred while saving the data.");
+    // Double-check we have a valid UUID for householdId
+    if (!householdId || typeof householdId !== "string" || householdId.length < 30) {
+      Alert.alert("Error", "Household ID is missing or invalid (not a UUID).");
+      return;
     }
+
+    if (
+      !firstName.trim() ||
+      !lastName.trim() ||
+      !relationship ||
+      !sex ||
+      !dateofbirth ||
+      !educationLevel
+    ) {
+      Alert.alert("Incomplete Data", "Please fill in all required fields.");
+      return;
+    }
+
+    const finalRelationship =
+      relationship === "Other" ? otherRelationship : relationship;
+    const finalHealthRisk = selectedHealthRisks.join(", ");
+    const formattedDOB = dateofbirth ? format(dateofbirth, "yyyy-MM-dd") : "";
+
+    // Build the data object to align with the insertMember function
+    const newMember = {
+      firstname: firstName,
+      lastname: lastName,
+      relationship: finalRelationship,
+      sex,
+      age: age ? age.toString() : null,
+      dateofbirth: formattedDOB,
+      classification,
+      healthrisk: finalHealthRisk || "",
+      weight: weight ? parseFloat(weight) : null,
+      height: height ? parseFloat(height) : null,
+      educationallevel: educationLevel || "",
+      // Notice we pass household_uuid (or householdid) as the function fallback uses
+      householdid: householdId, // The string from route
+    };
+
+    console.log("🛠️ DEBUG: Member Data Before Insert:", newMember);
+
+    const localMemberId = await insertMember(newMember);
+    if (!localMemberId) {
+      Alert.alert("Error", "Failed to save member data locally.");
+      return;
+    }
+
+    Alert.alert("Success", "Member data saved successfully!");
+    router.push({
+      pathname: "/memberHealthInfo",
+      params: { memberId: localMemberId, householdId }, // pass the strings
+    });
   };
-  
 
   return (
     <ScrollView style={styles.container}>
@@ -196,7 +191,6 @@ const AddMemberScreen = () => {
       />
 
       <Text style={styles.subHeader}>Relationship of Member to Household</Text>
-      {/* Replace RNPickerSelect with a simple Picker */}
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={relationship}
@@ -272,7 +266,10 @@ const AddMemberScreen = () => {
             label="School Aged Children (5-9 years old)"
             value="School Aged Children (5-9 years old)"
           />
-          <Picker.Item label="Young adult (10-17 years old)" value="Young adult (10-17 years old)" />
+          <Picker.Item
+            label="Young adult (10-17 years old)"
+            value="Young adult (10-17 years old)"
+          />
           <Picker.Item label="Adult 18-59 years old" value="Adult 18-59 years old" />
           <Picker.Item
             label="Senior citizen (60 years old above)"
@@ -358,16 +355,12 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   backButton: { marginRight: 10, padding: 4 },
   headerText: { fontSize: 24, fontWeight: "bold", color: "#000" },
-
   input: { marginBottom: 16 },
   inputSmall: { width: "48%", marginBottom: 16 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   radioContainer: { flexDirection: "row", alignItems: "center" },
   button: { marginTop: 20 },
-
   subHeader: { fontSize: 16, fontWeight: "bold", marginTop: 10 },
-
-  // Simple container style for Picker
   pickerContainer: {
     borderWidth: 1,
     borderColor: "gray",
@@ -375,7 +368,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#f9f9f9",
   },
-
   healthRiskDropdown: {
     borderWidth: 1,
     borderColor: "gray",

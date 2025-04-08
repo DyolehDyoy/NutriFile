@@ -1,22 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Platform } from "react-native";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, Divider } from "react-native-paper";
-import database from "../database"; // Import the default export
+import database from "../database"; // Import your database module
 import DateTimePicker from "@react-native-community/datetimepicker";
-
-
 
 const MemberHealthInfoScreen = () => {
   const router = useRouter();
-  // Extract both householdId and memberId from route params
   const params = useLocalSearchParams();
   console.log("Route parameters:", params);
+
+  // Extract as strings without converting to numbers
   const { householdId, memberId } = params;
-  const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
-  const parsedMemberId = memberId ? parseInt(memberId, 10) : null;
-  console.log("Parsed householdId from route:", parsedHouseholdId);
-  console.log("Parsed memberId from route:", parsedMemberId);
+  
+  // Validate that we have full UUID strings (a typical UUID is ~36 characters)
+  if (!householdId || typeof householdId !== "string" || householdId.length < 30) {
+    Alert.alert("Error", "Missing or invalid householdId. Please try again.");
+    router.back();
+    return null;
+  }
+  if (!memberId || typeof memberId !== "string" || memberId.length < 30) {
+    Alert.alert("Error", "Missing or invalid memberId. Please try again.");
+    router.back();
+    return null;
+  }
+  
+  console.log("Parsed householdId from route:", householdId);
+  console.log("Parsed memberId from route:", memberId);
 
   // States for health info
   const [philHealth, setPhilHealth] = useState("");
@@ -25,68 +43,58 @@ const MemberHealthInfoScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [smoker, setSmoker] = useState("");
   const [alcoholDrinker, setAlcoholDrinker] = useState("");
-
-  // Physical Activity Radio + Text Input
   const [physicalActivity, setPhysicalActivity] = useState("");
   const [specificPhysicalActivity, setSpecificPhysicalActivity] = useState("");
-
-  // Morbidity Radio + Text Input
   const [morbidity, setMorbidity] = useState("");
   const [specify, setSpecify] = useState("");
-
   const [loading, setLoading] = useState(false);
 
   const handleNext = async () => {
     try {
-      if (!parsedMemberId) {
-        Alert.alert("Error", "Missing member ID. Please try again.");
-        return;
-      }
-  
+      // memberId and householdId here are assumed to be the full UUID strings.
       setLoading(true);
-  
-      // If the user typed something in the text field, override the radio choice
+
+      // If user typed something in the physical activity specific field, override the radio choice
       let finalPhysicalActivity = physicalActivity.trim();
       if (specificPhysicalActivity.trim()) {
         finalPhysicalActivity = specificPhysicalActivity.trim();
       }
-  
       let finalMorbidity = morbidity.trim();
       if (specify.trim()) {
         finalMorbidity = specify.trim();
       }
-  
-      // Build the object to insert into memberhealthinfo (including householdid)
+
+      // Build the health data object using UUID keys.
+      // Note: The keys must match what your database.insertMemberHealthInfo function expects.
       const healthData = {
-        memberid: parsedMemberId,
+        member_uuid: memberId,          // Full member UUID from route
         philhealth: philHealth,
         familyplanning: familyPlanning,
-        lastmenstrualperiod: familyPlanning === "Yes" ? lastMenstrualPeriod || null : null,  // ✅ Ensure LMP is stored correctly
+        lastmenstrualperiod: familyPlanning === "Yes" ? lastMenstrualPeriod || null : null,
         smoker: smoker,
         alcoholdrinker: alcoholDrinker,
         physicalactivity: finalPhysicalActivity,
         morbidity: finalMorbidity,
-        householdid: parsedHouseholdId,
+        household_uuid: householdId,    // Full household UUID from route
       };
-      
-  
+
       console.log("📌 HealthData object created:", healthData);
-  
+
       // Insert into memberhealthinfo table
       const healthInfoId = await database.insertMemberHealthInfo(healthData);
       console.log("✅ insertMemberHealthInfo returned:", healthInfoId);
-  
+
       if (healthInfoId) {
         await database.syncWithSupabase();
         Alert.alert("Success", "Health information saved successfully!");
         router.push({
           pathname: "/immunization",
-          params: { memberId: parsedMemberId, householdId: parsedHouseholdId },
+          params: { memberId, householdId },
         });
       } else {
         Alert.alert("Error", "Failed to save health info.");
       }
-  
+
       setLoading(false);
     } catch (err) {
       console.error("❌ Error inside handleNext:", err);
@@ -94,7 +102,6 @@ const MemberHealthInfoScreen = () => {
       setLoading(false);
     }
   };
-  
 
   return (
     <ScrollView style={styles.container}>
@@ -114,56 +121,49 @@ const MemberHealthInfoScreen = () => {
       </Card>
 
       {/* Family Planning */}
-<Card style={styles.card}>
-  <Card.Content>
-    <Text style={styles.subHeader}>Family Planning (For reproductive age only)</Text>
-    <RadioButton.Group onValueChange={setFamilyPlanning} value={familyPlanning}>
-      <View style={styles.radioContainer}>
-        <RadioButton.Item label="Yes" value="Yes" />
-        <RadioButton.Item label="No" value="No" />
-      </View>
-    </RadioButton.Group>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.subHeader}>Family Planning (For reproductive age only)</Text>
+          <RadioButton.Group onValueChange={setFamilyPlanning} value={familyPlanning}>
+            <View style={styles.radioContainer}>
+              <RadioButton.Item label="Yes" value="Yes" />
+              <RadioButton.Item label="No" value="No" />
+            </View>
+          </RadioButton.Group>
 
-    {/* Last Menstrual Period (Only show if family planning is Yes) */}
-{familyPlanning === "Yes" && (
-  <>
-    <Divider style={styles.divider} />
-    <Text style={styles.subHeader}>Last Menstrual Period</Text>
-
-    <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-  <TextInput
-    mode="outlined"
-    label="Select Date"
-    value={lastMenstrualPeriod ? new Date(lastMenstrualPeriod).toDateString() : ""}
-    editable={false} // Prevents manual typing
-    style={styles.input}
-    left={<TextInput.Icon icon="calendar" />}
-  />
-</TouchableOpacity>
-
-
-    {showDatePicker && (
-     <DateTimePicker
-     value={lastMenstrualPeriod ? new Date(lastMenstrualPeriod) : new Date()}
-     mode="date"
-     display={Platform.OS === "ios" ? "spinner" : "default"}
-     onChange={(event, selectedDate) => {
-       setShowDatePicker(false);
-       if (selectedDate) {
-         const formattedDate = selectedDate.toISOString().split("T")[0]; // ✅ YYYY-MM-DD format
-         console.log("📌 Selected LMP Date:", formattedDate); // ✅ Debug log
-         setLastMenstrualPeriod(formattedDate); // ✅ Correctly set the selected date
-       }
-     }}
-   />
-   
-    )}
-  </>
-)}
-
-  </Card.Content>
-</Card>
-
+          {familyPlanning === "Yes" && (
+            <>
+              <Divider style={styles.divider} />
+              <Text style={styles.subHeader}>Last Menstrual Period</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                <TextInput
+                  mode="outlined"
+                  label="Select Date"
+                  value={lastMenstrualPeriod ? new Date(lastMenstrualPeriod).toDateString() : ""}
+                  editable={false}
+                  style={styles.input}
+                  left={<TextInput.Icon icon="calendar" />}
+                />
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={lastMenstrualPeriod ? new Date(lastMenstrualPeriod) : new Date()}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      const formattedDate = selectedDate.toISOString().split("T")[0];
+                      console.log("📌 Selected LMP Date:", formattedDate);
+                      setLastMenstrualPeriod(formattedDate);
+                    }
+                  }}
+                />
+              )}
+            </>
+          )}
+        </Card.Content>
+      </Card>
 
       {/* Physical Activity */}
       <Card style={styles.card}>
@@ -175,7 +175,6 @@ const MemberHealthInfoScreen = () => {
               <RadioButton.Item label="No" value="No" />
             </View>
           </RadioButton.Group>
-
           {physicalActivity === "Yes" && (
             <TextInput
               label="Specify physical activity"
@@ -188,7 +187,7 @@ const MemberHealthInfoScreen = () => {
         </Card.Content>
       </Card>
 
-      {/* Morbidity (Health Conditions) */}
+      {/* Morbidity */}
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.subHeader}>Morbidity (Diabetes, Hypertension, TB, etc.)</Text>
@@ -198,7 +197,6 @@ const MemberHealthInfoScreen = () => {
               <RadioButton.Item label="Absence" value="Absence" />
             </View>
           </RadioButton.Group>
-
           {morbidity === "Presence" && (
             <TextInput
               label="Please specify condition"

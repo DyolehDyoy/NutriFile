@@ -1,26 +1,24 @@
 import React, { useState } from "react";
-import { 
-  View, 
-  ScrollView, 
-  StyleSheet, 
-  ActivityIndicator, 
-  Alert 
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Alert
 } from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, Divider } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import database from "../database"; // Import your database functions
+import database from "../database";
 
 const ImmunizationScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   console.log("Route parameters:", params);
 
-  // Extract both householdId and memberId from route params
+  // Use the route parameters as strings (no parseInt here)
   const { householdId, memberId } = params;
-  const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
-  const parsedMemberId = memberId ? parseInt(memberId, 10) : null;
-  console.log("Parsed householdId:", parsedHouseholdId);
-  console.log("Parsed memberId:", parsedMemberId);
+  console.log("HouseholdId from route:", householdId);
+  console.log("MemberId from route:", memberId);
 
   // Immunization states
   const [bcg, setBcg] = useState("");
@@ -30,19 +28,24 @@ const ImmunizationScreen = () => {
   const [pneumococcal, setPneumococcal] = useState("");
   const [mmr, setMmr] = useState("");
   const [remarks, setRemarks] = useState("");
-
-  // Loading state for save operation
   const [loading, setLoading] = useState(false);
 
   // Helper function to save immunization data locally (and sync if online)
   const saveImmunizationData = async () => {
-    if (!parsedMemberId) {
+    // Instead of using parsedMemberId and parsedHouseholdId, use the raw strings:
+    if (!memberId) {
       Alert.alert("Error", "Missing member ID.");
       return false;
     }
+    if (!householdId) {
+      Alert.alert("Error", "Missing household ID.");
+      return false;
+    }
     setLoading(true);
+
+    // Build the immunization data object using the proper keys:
     const immunData = {
-      memberid: parsedMemberId,
+      member_uuid: memberId,          // full UUID string
       bcg,
       hepatitis,
       pentavalent,
@@ -50,7 +53,7 @@ const ImmunizationScreen = () => {
       pneumococcal,
       mmr,
       remarks,
-      householdid: parsedHouseholdId,
+      household_uuid: householdId,      // full UUID string
     };
     console.log("📌 Attempting to save immunization data:", immunData);
 
@@ -79,16 +82,16 @@ const ImmunizationScreen = () => {
             text: "Add Another Member",
             onPress: () =>
               router.push({
-                pathname: "/addMember", // Adjust this route if needed
-                params: { householdId: parsedHouseholdId },
+                pathname: "/addMember",
+                params: { householdId }, // Pass householdId as the UUID string
               }),
           },
           {
             text: "Dashboard",
             onPress: () =>
               router.push({
-                pathname: "/dashboard", // Adjust this route to match your project
-                params: { householdId: householdId },
+                pathname: "/dashboard",
+                params: { householdId },
               }),
           },
         ]
@@ -196,7 +199,7 @@ const ImmunizationScreen = () => {
         </Card.Content>
       </Card>
 
-      {/* Single Button: Save Immunization Data and Show Next Options */}
+      {/* Save Button */}
       <View style={styles.buttonContainer}>
         <Button
           mode="contained"
@@ -219,8 +222,7 @@ const styles = StyleSheet.create({
   input: { marginTop: 8, marginBottom: 12, backgroundColor: "#fff" },
   radioContainer: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", marginVertical: 8 },
   buttonContainer: { marginTop: 24, alignItems: "center" },
-  saveButton: { backgroundColor: "#205C3B", paddingVertical: 12, paddingHorizontal: 16, width: "90%" },
-  listButton: { borderColor: "#205C3B", borderWidth: 1, paddingVertical: 12, paddingHorizontal: 16, width: "90%" },
+  primaryButton: { backgroundColor: "#205C3B", paddingVertical: 12, paddingHorizontal: 16, width: "90%" },
   card: { marginBottom: 20, padding: 16, backgroundColor: "white", borderRadius: 12, elevation: 3 },
 });
 
