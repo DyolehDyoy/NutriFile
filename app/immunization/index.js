@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, Divider } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import database from "../database"; // Import the default export from database.js
+import database from "../database"; // Import your database functions
 
 const ImmunizationScreen = () => {
   const router = useRouter();
@@ -19,10 +19,10 @@ const ImmunizationScreen = () => {
   const { householdId, memberId } = params;
   const parsedHouseholdId = householdId ? parseInt(householdId, 10) : null;
   const parsedMemberId = memberId ? parseInt(memberId, 10) : null;
-  console.log("Parsed householdId from route:", parsedHouseholdId);
-  console.log("Parsed memberId from route:", parsedMemberId);
+  console.log("Parsed householdId:", parsedHouseholdId);
+  console.log("Parsed memberId:", parsedMemberId);
 
-  // Immunization States
+  // Immunization states
   const [bcg, setBcg] = useState("");
   const [hepatitis, setHepatitis] = useState("");
   const [pentavalent, setPentavalent] = useState("");
@@ -31,15 +31,14 @@ const ImmunizationScreen = () => {
   const [mmr, setMmr] = useState("");
   const [remarks, setRemarks] = useState("");
 
-  // New state to track whether immunization data has been saved
-  const [savedImmunizationId, setSavedImmunizationId] = useState(null);
+  // Loading state for save operation
   const [loading, setLoading] = useState(false);
 
-  // Combined function: save immunization data and then navigate to AddMember screen
-  const handleSaveImmunization = async () => {
+  // Helper function to save immunization data locally (and sync if online)
+  const saveImmunizationData = async () => {
     if (!parsedMemberId) {
       Alert.alert("Error", "Missing member ID.");
-      return;
+      return false;
     }
     setLoading(true);
     const immunData = {
@@ -51,31 +50,52 @@ const ImmunizationScreen = () => {
       pneumococcal,
       mmr,
       remarks,
-      householdid: parsedHouseholdId, // Added householdid here
+      householdid: parsedHouseholdId,
     };
     console.log("📌 Attempting to save immunization data:", immunData);
-    
+
     // Insert the immunization data locally
     const immunizationId = await database.insertImmunization(immunData);
     if (immunizationId) {
-      // Force an immediate sync so that the record is pushed to Supabase
+      // Attempt to sync immediately with Supabase
       await database.syncWithSupabase();
-      Alert.alert("Success", "Immunization data saved successfully!", [
-        {
-          text: "OK",
-          onPress: () => {
-            router.push({
-              pathname: "/dashboard",
-              params: { householdid: parsedHouseholdId },
-            });
+      setLoading(false);
+      return true;
+    } else {
+      setLoading(false);
+      return false;
+    }
+  };
+
+  // Handler: Save the data and then show an alert prompt with two options.
+  const handleSaveAndPromptNext = async () => {
+    const success = await saveImmunizationData();
+    if (success) {
+      Alert.alert(
+        "Success",
+        "Immunization data has been saved successfully! What would you like to do next?",
+        [
+          {
+            text: "Add Another Member",
+            onPress: () =>
+              router.push({
+                pathname: "/addMember", // Adjust this route if needed
+                params: { householdId: parsedHouseholdId },
+              }),
           },
-        },
-      ]);      
-      
+          {
+            text: "Dashboard",
+            onPress: () =>
+              router.push({
+                pathname: "/dashboard", // Adjust this route to match your project
+                params: { householdId: householdId },
+              }),
+          },
+        ]
+      );
     } else {
       Alert.alert("Error", "Failed to save immunization data.");
     }
-    setLoading(false);
   };
 
   return (
@@ -176,12 +196,17 @@ const ImmunizationScreen = () => {
         </Card.Content>
       </Card>
 
-      {/* Single Button: Save and Add New Member */}
+      {/* Single Button: Save Immunization Data and Show Next Options */}
       <View style={styles.buttonContainer}>
-      <Button mode="contained" style={styles.saveButton} onPress={handleSaveImmunization}>
-  {loading ? <ActivityIndicator color="white" /> : "Save"}
-</Button>
-
+        <Button
+          mode="contained"
+          style={styles.primaryButton}
+          onPress={handleSaveAndPromptNext}
+          disabled={loading}
+          buttonColor="#205C3B"
+        >
+          {loading ? <ActivityIndicator color="white" /> : "Save Immunization Data"}
+        </Button>
       </View>
     </ScrollView>
   );
@@ -193,8 +218,9 @@ const styles = StyleSheet.create({
   subHeader: { fontSize: 18, fontWeight: "600", marginTop: 16, marginBottom: 8, color: "#444" },
   input: { marginTop: 8, marginBottom: 12, backgroundColor: "#fff" },
   radioContainer: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", marginVertical: 8 },
-  buttonContainer: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
-  saveButton: { backgroundColor: "#205C3B", paddingVertical: 12, paddingHorizontal: 16 },
+  buttonContainer: { marginTop: 24, alignItems: "center" },
+  saveButton: { backgroundColor: "#205C3B", paddingVertical: 12, paddingHorizontal: 16, width: "90%" },
+  listButton: { borderColor: "#205C3B", borderWidth: 1, paddingVertical: 12, paddingHorizontal: 16, width: "90%" },
   card: { marginBottom: 20, padding: 16, backgroundColor: "white", borderRadius: 12, elevation: 3 },
 });
 

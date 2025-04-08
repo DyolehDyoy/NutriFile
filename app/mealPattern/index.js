@@ -120,7 +120,7 @@ const MealPatternScreen = () => {
     await syncWithSupabase();
     Alert.alert("Success", "Meal Pattern saved successfully!");
     formState.loading.set(false);
-    router.push("/householdlist");
+    router.push({ pathname: "/addMember", params: { householdId } });
   };
 
   return (
