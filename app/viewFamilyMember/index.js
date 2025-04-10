@@ -1,24 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { View, ScrollView, StyleSheet, Alert } from "react-native";
+import { View, ScrollView, StyleSheet, Alert, TouchableOpacity } from "react-native";
 import { Text, Card, ActivityIndicator } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { TouchableOpacity } from "react-native";
 import supabase from "../supabaseClient";
 
 const ViewFamilyMemberScreen = () => {
   const router = useRouter();
-  const { memberId } = useLocalSearchParams();
+
+  // IMPORTANT: The param name should match how you pass it in your route.
+  // If your route is: /viewFamilyMember?memberUuid=xxx, then do:
+  const { memberUuid } = useLocalSearchParams();
+
+  // If your route param is literally named "memberId", you can rename below:
+  // const { memberId } = useLocalSearchParams();
+  // Then, you'd do eq("uuid", memberId).
+
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMemberDetails = async () => {
       try {
+        // We query the "addmember" table by "uuid" instead of old numeric "id".
+        // Ensure the route param's name matches how you navigate.
         const { data, error } = await supabase
           .from("addmember")
           .select("*")
-          .eq("id", memberId)
+          .eq("uuid", memberUuid)  // 🔥 Use .eq("uuid", yourParam)
           .single();
 
         if (error) throw error;
@@ -31,10 +40,10 @@ const ViewFamilyMemberScreen = () => {
       }
     };
 
-    if (memberId) {
+    if (memberUuid) {
       fetchMemberDetails();
     }
-  }, [memberId]);
+  }, [memberUuid, router]);
 
   if (loading) {
     return <ActivityIndicator size="large" color="#1662C6" style={styles.loader} />;
@@ -52,21 +61,45 @@ const ViewFamilyMemberScreen = () => {
     <ScrollView style={styles.container}>
       <Card style={styles.card}>
         <Card.Content>
-        <View style={styles.headerRow}>
-  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-    <MaterialCommunityIcons name="arrow-left" size={28} color="#000" />
-  </TouchableOpacity>
-  <Text style={styles.header}>{member.firstname} {member.lastname}</Text>
-</View>
-          <Text style={styles.subHeader}>Relationship: <Text style={styles.value}>{member.relationship}</Text></Text>
-          <Text style={styles.subHeader}>Sex: <Text style={styles.value}>{member.sex}</Text></Text>
-          <Text style={styles.subHeader}>Date of Birth: <Text style={styles.value}>{member.dateofbirth}</Text></Text>
-          <Text style={styles.subHeader}>Age: <Text style={styles.value}>{member.age}</Text></Text>
-          <Text style={styles.subHeader}>Classification: <Text style={styles.value}>{member.classification}</Text></Text>
-          <Text style={styles.subHeader}>Health Risk: <Text style={styles.value}>{member.healthrisk || "None"}</Text></Text>
-          <Text style={styles.subHeader}>Weight: <Text style={styles.value}>{member.weight} kg</Text></Text>
-          <Text style={styles.subHeader}>Height: <Text style={styles.value}>{member.height} cm</Text></Text>
-          <Text style={styles.subHeader}>Educational Level: <Text style={styles.value}>{member.educationallevel}</Text></Text>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <MaterialCommunityIcons name="arrow-left" size={28} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.header}>
+              {member.firstname} {member.lastname}
+            </Text>
+          </View>
+
+          <Text style={styles.subHeader}>
+            Relationship: <Text style={styles.value}>{member.relationship}</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Sex: <Text style={styles.value}>{member.sex}</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Date of Birth: <Text style={styles.value}>{member.dateofbirth}</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Age: <Text style={styles.value}>{member.age}</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Classification:{" "}
+            <Text style={styles.value}>{member.classification}</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Health Risk:{" "}
+            <Text style={styles.value}>{member.healthrisk || "None"}</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Weight: <Text style={styles.value}>{member.weight} kg</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Height: <Text style={styles.value}>{member.height} cm</Text>
+          </Text>
+          <Text style={styles.subHeader}>
+            Educational Level:{" "}
+            <Text style={styles.value}>{member.educationallevel}</Text>
+          </Text>
         </Card.Content>
       </Card>
     </ScrollView>
@@ -94,12 +127,24 @@ const styles = StyleSheet.create({
     padding: 20,
     elevation: 3,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    position: "relative",
+  },
+  backButton: {
+    position: "absolute",
+    left: 0,
+    padding: 4,
+    zIndex: 1,
+  },
   header: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#1662C6",
     textAlign: "center",
-    marginBottom: 10,
+    flex: 1,
   },
   subHeader: {
     fontSize: 16,
@@ -111,33 +156,6 @@ const styles = StyleSheet.create({
     fontWeight: "normal",
     color: "#555",
   },
-  headerWithBack: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-    position: "relative",
-  },
-  
-  backButton: {
-    position: "absolute",
-    left: 0,
-    padding: 4,
-    zIndex: 1,
-  },
-  
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1662C6",
-    textAlign: "center",
-  },
-  
-  headerSpacer: {
-    flex: 1,
-    alignItems: "center",
-  },
-  
 });
 
 export default ViewFamilyMemberScreen;

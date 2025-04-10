@@ -16,17 +16,19 @@ import { SwipeListView } from "react-native-swipe-list-view";
 
 const FamilyMembersListScreen = () => {
   const router = useRouter();
-  const { householdid } = useLocalSearchParams();
+  const { householdid } = useLocalSearchParams(); // or householdUuid, if the route param is a UUID
   const [familyMembers, setFamilyMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Manage references to each open row in SwipeListView
   const rowRefs = useRef(new Map());
   const openRowRef = useRef(null);
 
   useEffect(() => {
-    console.log("🔍 Household ID received:", householdid);
+    console.log("🔍 Household UUID received:", householdid);
     if (!householdid) {
-      Alert.alert("Error", "Household ID is missing.");
+      Alert.alert("Error", "Household UUID is missing.");
       router.back();
     } else {
       fetchFamilyMembers();
@@ -36,13 +38,14 @@ const FamilyMembersListScreen = () => {
   const fetchFamilyMembers = async () => {
     setLoading(true);
     try {
-      console.log("🔍 Fetching family members for Household ID:", householdid);
+      console.log("🔍 Fetching family members for household_uuid:", householdid);
 
+      // Query Supabase by household_uuid instead of numeric householdid
       const { data, error } = await supabase
         .from("addmember")
-        .select("id, firstname, lastname, relationship, householdid")
-        .eq("householdid", householdid)
-        .order("id", { ascending: false });
+        .select("uuid, firstname, lastname, relationship, household_uuid")
+        .eq("household_uuid", householdid)  // match the parent's UUID
+        .order("uuid", { ascending: false }); // or .order("dateofbirth", ...)
 
       if (error) {
         console.error("❌ Supabase Error:", error.message);
@@ -64,7 +67,8 @@ const FamilyMembersListScreen = () => {
     setRefreshing(false);
   };
 
-  const confirmDelete = (memberId) => {
+  // Confirm before deleting
+  const confirmDelete = (memberUuid) => {
     Alert.alert(
       "Confirm Deletion",
       "Are you sure you want to delete this family member?",
@@ -73,20 +77,25 @@ const FamilyMembersListScreen = () => {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => handleDelete(memberId),
+          onPress: () => handleDelete(memberUuid),
         },
       ]
     );
   };
 
-  const handleDelete = async (memberId) => {
+  // Delete by matching on uuid
+  const handleDelete = async (memberUuid) => {
     try {
-      const { error } = await supabase.from("addmember").delete().match({ id: memberId });
+      const { error } = await supabase
+        .from("addmember")
+        .delete()
+        .match({ uuid: memberUuid }); // use uuid instead of id
       if (error) throw error;
 
-      rowRefs.current.get(memberId)?.closeRow();
+      // Close the row in SwipeListView
+      rowRefs.current.get(memberUuid)?.closeRow();
       openRowRef.current = null;
-      setFamilyMembers((prev) => prev.filter((member) => member.id !== memberId));
+      setFamilyMembers((prev) => prev.filter((member) => member.uuid !== memberUuid));
       Vibration.vibrate(100);
       Alert.alert("Success", "Family member deleted successfully.");
     } catch (error) {
@@ -95,28 +104,34 @@ const FamilyMembersListScreen = () => {
     }
   };
 
-  // ✅ Handle Edit - Navigates to Edit Screen
-  const handleEdit = (memberId) => {
-    rowRefs.current.get(memberId)?.closeRow();
+  // Edit by passing the member's UUID to the route
+  const handleEdit = (memberUuid) => {
+    rowRefs.current.get(memberUuid)?.closeRow();
     openRowRef.current = null;
-    router.push({ pathname: "/editFamilyMember", params: { memberId } });
+    router.push({ pathname: "/editFamilyMember", params: { memberUuid } });
   };
 
-  // ✅ Swipe actions - Side-by-side Edit & Delete buttons
+  // Swipe Left Hidden Item (Edit & Delete)
   const renderHiddenItem = ({ item }) => (
     <View style={styles.rowBack}>
       <TouchableOpacity
         style={[styles.actionButton, styles.editButton]}
-        onPress={() => {
-          router.push({ pathname: "/editFamilyMember", params: { memberId: item.id, householdid: item.householdid } });
-        }}
+        onPress={() =>
+          router.push({
+            pathname: "/editFamilyMember",
+            params: {
+              memberUuid: item.uuid,
+              householdid: item.household_uuid,
+            },
+          })
+        }
       >
         <MaterialCommunityIcons name="pencil" size={20} color="white" />
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.actionButton, styles.deleteButton]}
-        onPress={() => confirmDelete(item.id)}
+        onPress={() => confirmDelete(item.uuid)}
       >
         <MaterialCommunityIcons name="delete" size={20} color="white" />
       </TouchableOpacity>
@@ -125,28 +140,40 @@ const FamilyMembersListScreen = () => {
 
   return (
     <View style={styles.container}>
-     <View style={styles.headerContainer}>
-  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-    <MaterialCommunityIcons name="arrow-left" size={24} color="#1662C6" />
-  </TouchableOpacity>
-  <Text style={styles.header}>Family Members</Text>
-</View>
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#1662C6" />
+        </TouchableOpacity>
+        <Text style={styles.header}>Family Members</Text>
+      </View>
 
+      {/* Loading or No Records */}
       {loading ? (
         <ActivityIndicator size="large" color="#205C3B" style={styles.loader} />
       ) : familyMembers.length === 0 ? (
         <Text style={styles.emptyText}>No family members found.</Text>
       ) : (
+        // Otherwise show the list
         <SwipeListView
           data={familyMembers}
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          // Key extractor on "uuid" now
+          keyExtractor={(item) => item.uuid}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          // Visible Item
           renderItem={({ item }) => (
             <View style={styles.cardContainer}>
               <Card style={styles.card}>
                 <TouchableOpacity
                   style={styles.cardContent}
-                  onPress={() => router.push({ pathname: "/viewFamilyMember", params: { memberId: item.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/viewFamilyMember",
+                      params: { memberUuid: item.uuid },
+                    })
+                  }
                 >
                   <MaterialCommunityIcons name="account-circle" size={40} color="#1662C6" />
                   <View style={styles.textContainer}>
@@ -154,7 +181,7 @@ const FamilyMembersListScreen = () => {
                       {item.firstname || ""} {item.lastname || ""}
                     </Text>
                     <Text style={styles.relationship}>
-                      {item.relationship ? item.relationship : "No Relationship Info"}
+                      {item.relationship || "No Relationship Info"}
                     </Text>
                   </View>
                   <MaterialCommunityIcons name="chevron-right" size={24} color="#888" />
@@ -162,27 +189,43 @@ const FamilyMembersListScreen = () => {
               </Card>
             </View>
           )}
+          // Hidden Item for swipe actions
           renderHiddenItem={renderHiddenItem}
           leftOpenValue={0}
-          rightOpenValue={-100} // ✅ Adjusted for compact buttons
+          rightOpenValue={-100}
           disableRightSwipe={true}
+          onRowOpen={(rowKey) => {
+            if (openRowRef.current && openRowRef.current !== rowKey) {
+              rowRefs.current.get(openRowRef.current)?.closeRow();
+            }
+            openRowRef.current = rowKey;
+          }}
+          onRowClose={(rowKey) => {
+            if (openRowRef.current === rowKey) {
+              openRowRef.current = null;
+            }
+          }}
         />
       )}
 
+      {/* FAB to add new member */}
       <FAB
         style={styles.fab}
         icon="plus"
         label="Add Member"
         onPress={() => {
-          console.log("🟢 Navigating to AddMember with Household ID:", householdid);
-          router.push({ pathname: "/addMember", params: { householdId: householdid } });
+          console.log("🟢 Navigating to AddMember with household_uuid:", householdid);
+          router.push({
+            pathname: "/addMember",
+            params: { householdId: householdid },
+          });
         }}
       />
     </View>
   );
 };
 
-// ✅ Styled for Modern Look
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -190,12 +233,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
   },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginBottom: 16,
+  },
+  backButton: {
+    marginRight: 10,
+    padding: 8,
+  },
   header: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#1662C6",
-    textAlign: "center",
-    marginBottom: 16,
   },
   loader: {
     marginTop: 50,
@@ -262,22 +313,6 @@ const styles = StyleSheet.create({
     bottom: 30,
     backgroundColor: "#1662C6",
   },
-  headerContainer: {
-    flexDirection: "row", // Arrange back button & title in a row
-    alignItems: "center", // Align items vertically
-    justifyContent: "flex-start", // Keep items aligned to the left
-    marginBottom: 16,
-  },
-  backButton: {
-    marginRight: 10, // Space between back button and title
-    padding: 8, // Increase touchable area for better usability
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1662C6",
-  },
-  
 });
 
 export default FamilyMembersListScreen;
