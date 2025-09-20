@@ -1,6 +1,7 @@
 import { Menu, IconButton } from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialIcons"; // Import the icon
 import React, { useEffect, useState } from "react";
+
 import {
   View,
   ScrollView,
@@ -454,6 +455,8 @@ const handleBarangaySearch = (query) => {
     { value: "Spring", label: "Spring" },
     { value: "DCWD", label: "DCWD" },
     { value: "Tabay", label: "Tabay" },
+    { value: "Bawasa", label: "Bawasa" },
+    
     { value: "Other", label: "Other" }, // ✅ Added "Other" option
   ]}
 />
